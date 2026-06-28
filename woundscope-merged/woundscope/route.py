@@ -74,13 +74,19 @@ def route(ex: WoundExtraction, diagnoses: list[dict], coverage: list[dict]) -> d
             f"Wound documentation could not be reliably extracted "
             f"(confidence {ex.confidence:.2f}); not safe to auto-bill.")
     # --- accept vs review ---
-    elif (measurements_complete and has_drainage and not ex.multi_wound
-          and ex.confidence >= ACCEPT_CONF):
+    # A patient with at least one fully-documented wound is billable on that
+    # wound, even if other wounds are messier (the primary is the best-documented
+    # wound, so a complete primary == "at least one complete wound").
+    elif measurements_complete and has_drainage and ex.confidence >= ACCEPT_CONF:
         decision = "auto_accept"
         reasons.append(
             f"Active {ex.wound_type or 'wound'} dx + active Medicare Part B + "
             f"complete measurements ({ex.length_cm}×{ex.width_cm}×{ex.depth_cm} cm) "
             f"and drainage ({ex.drainage()}) documented; confidence {ex.confidence:.2f}.")
+        if ex.multi_wound:
+            reasons.append(
+                f"Patient has {ex.wound_count} wounds — auto-accepted on the "
+                f"best-documented one; confirm the other(s) are billed separately.")
     else:
         decision = "flag_for_review"
         if not measurements_complete:
@@ -90,7 +96,8 @@ def route(ex: WoundExtraction, diagnoses: list[dict], coverage: list[dict]) -> d
         if not has_drainage:
             reasons.append("Drainage not documented.")
         if ex.multi_wound:
-            reasons.append("Multiple wounds detected in notes; needs manual split.")
+            reasons.append(f"{ex.wound_count} wounds detected; no single wound is "
+                           "fully documented — needs manual review.")
         if ex.confidence < ACCEPT_CONF:
             reasons.append(f"Extraction confidence below auto-accept threshold "
                            f"({ex.confidence:.2f} < {ACCEPT_CONF}).")

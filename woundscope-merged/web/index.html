@@ -60,32 +60,29 @@
       <button class="reset" id="reset">Reset</button>
     </div>
 
-    <!-- main -->
-    <div class="layout">
-      <section class="panel">
-        <div class="phead">
-          <h2>Review queue</h2>
-          <span class="hint"><b id="queue-count">—</b> patients · sorted by decision, then confidence</span>
-        </div>
-        <div class="qcols"><span>Patient</span><span>Wound &amp; confidence</span><span class="qend">Decision</span></div>
-        <div class="queue" id="queue"><div class="loading">Loading…</div></div>
-      </section>
-
-      <aside class="panel detail" id="detail">
-        <div class="empty">
-          <h3>Select a patient to review</h3>
-          <ol>
-            <li>Pick a decision filter above (start with <b>Flag for Review</b> — those need a human).</li>
-            <li>Click a patient in the queue.</li>
-            <li>Read the <b>evaluation log</b> — every rule shown as pass / fail.</li>
-            <li>Check the <b>evidence</b> for proof, then mark the patient billed.</li>
-          </ol>
-        </div>
-      </aside>
-    </div>
+    <!-- queue (full width; detail opens in a modal) -->
+    <section class="panel">
+      <div class="phead">
+        <h2>Review queue</h2>
+        <span class="hint"><b id="queue-count">—</b> patients · sorted by decision, then confidence · click a row to review</span>
+      </div>
+      <div class="qcols"><span>Patient</span><span>Wound &amp; confidence</span><span class="qend">Decision</span></div>
+      <div class="queue tall" id="queue"><div class="loading">Loading…</div></div>
+    </section>
 
     <div class="banner">🔒 HIPAA-aligned: PHI minimized by default (minimum-necessary), processed locally,
       every decision audit-logged. Demo runs on synthetic patients.</div>
+  </div>
+
+  <!-- Patient detail modal -->
+  <div class="overlay" id="patient-overlay">
+    <div class="modal modal-lg" role="dialog" aria-modal="true" aria-label="Patient detail">
+      <div class="modal-h">
+        <div id="pm-title"></div>
+        <button class="close" id="pm-x" aria-label="Close">×</button>
+      </div>
+      <div class="modal-b" id="pm-body"></div>
+    </div>
   </div>
 
   <!-- How it works modal -->

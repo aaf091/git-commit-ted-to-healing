@@ -11,7 +11,6 @@ const state = { all: [], summary: null, selected: null, showPHI: false, ...DEFAU
 const $ = (s) => document.querySelector(s);
 
 async function boot() {
-  boot._empty = $("#detail").innerHTML;   // remember the guidance empty-state
   try {
     state.summary = await (await fetch("/api/summary")).json();
     state.all = await (await fetch("/api/results")).json();
@@ -66,13 +65,22 @@ function bindHelp() {
   $("#help-btn").onclick = () => ov.classList.add("show");
   $("#modal-x").onclick = () => ov.classList.remove("show");
   ov.onclick = (e) => { if (e.target === ov) ov.classList.remove("show"); };
-  document.addEventListener("keydown", e => { if (e.key === "Escape") ov.classList.remove("show"); });
+  // patient modal close
+  const pov = $("#patient-overlay");
+  $("#pm-x").onclick = closePatient;
+  pov.onclick = (e) => { if (e.target === pov) closePatient(); };
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    ov.classList.remove("show");
+    if (pov.classList.contains("show")) closePatient();
+  });
 }
 function togglePHI() {
   state.showPHI = !state.showPHI;
   $("#phi-state").textContent = state.showPHI ? "PHI Visible" : "PHI Masked";
   $("#phi-icon").textContent = state.showPHI ? "🔓" : "🔒";
-  render(); renderDetail();
+  render();
+  if (state.selected && $("#patient-overlay").classList.contains("show")) openPatient();
 }
 function resetFilters() {
   Object.assign(state, DEFAULTS());
@@ -106,19 +114,23 @@ function render() {
       <div class="qend">${pill(p.decision)}${(p.status&&p.status!=="open")?`<div class="statustag">${p.status}</div>`:""}</div>
     </div>`).join("");
   document.querySelectorAll(".qrow").forEach(r => {
-    const sel = () => { state.selected = r.dataset.id; render(); renderDetail(); $("#detail").scrollIntoView({behavior:"smooth",block:"nearest"}); };
+    const sel = () => { state.selected = r.dataset.id; render(); openPatient(); };
     r.onclick = sel;
     r.onkeydown = e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); sel(); } };
   });
 }
 
+function closePatient() {
+  $("#patient-overlay").classList.remove("show");
+  state.selected = null; render();
+}
+
 const evRow = (cls, mark, t, d) => `<div class="ev ${cls}"><div class="mark">${mark}</div><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`;
 const measChip = (label, val) => `<div class="m ${val==null?"miss":""}"><div class="ml">${label}</div><div class="mv">${val==null?"missing":val+" cm"}</div></div>`;
 
-function renderDetail() {
+function openPatient() {
   const p = state.all.find(x => x.patient_id === state.selected);
-  const el = $("#detail");
-  if (!p) { el.innerHTML = boot._empty; return; }
+  if (!p) { closePatient(); return; }
   const reliable = !!p.wound_type && p.confidence >= 0.45;
 
   const log = [
@@ -138,20 +150,21 @@ function renderDetail() {
   const st = p.status || "open";
   const sbtn = (v,l) => `<button class="sbtn ${st===v?"active":""}" data-st="${v}">${l}</button>`;
 
-  el.innerHTML = `<div class="dwrap">
-    <div class="dhead">
-      <div><div class="dname">${maskName(p.name)}</div><div class="dsub mono">${maskId(p.patient_id)} · Facility ${p.facility_id}${st!=="open"?` · <b>${st}</b>`:""}</div></div>
-      <div>${pill(p.decision)}</div>
-    </div>
+  $("#pm-title").innerHTML = `
+    <div class="pm-name">${maskName(p.name)}</div>
+    <div class="pm-sub mono">${maskId(p.patient_id)} · Facility ${p.facility_id}${st!=="open"?` · <b>${st}</b>`:""}</div>
+    <div class="pm-pill">${pill(p.decision)}</div>`;
+
+  $("#pm-body").innerHTML = `
     <div class="sec"><h4>Eligibility evaluation log</h4><div class="evlog">${log}</div><div class="reason">${p.reasoning}</div></div>
     <div class="sec"><h4>Wound measurements</h4><div class="meas">${measChip("Length",p.length_cm)}${measChip("Width",p.width_cm)}${measChip("Depth",p.depth_cm)}</div></div>
     ${multi}
     <div class="sec"><h4>Biller action</h4><div class="status-row">${sbtn("open","Open")}${sbtn("billed","Mark billed")}${sbtn("dismissed","Dismiss")}</div></div>
     <details class="fold"><summary>Evidence — source text behind each value</summary><div class="body">${evidence}</div></details>
-    <details class="fold"><summary>Provenance — source record per field</summary><div class="body prov">${prov}</div></details>
-  </div>`;
+    <details class="fold"><summary>Provenance — source record per field</summary><div class="body prov">${prov}</div></details>`;
 
-  el.querySelectorAll(".sbtn").forEach(b => b.onclick = () => setStatus(p.patient_id, b.dataset.st));
+  $("#pm-body").querySelectorAll(".sbtn").forEach(b => b.onclick = () => setStatus(p.patient_id, b.dataset.st));
+  $("#patient-overlay").classList.add("show");
 }
 
 async function setStatus(pid, status) {
@@ -159,7 +172,7 @@ async function setStatus(pid, status) {
     await fetch(`/api/patient/${pid}/status`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({status}) });
     const p = state.all.find(x => x.patient_id === pid); if (p) p.status = status;
     state.summary = await (await fetch("/api/summary")).json();
-    renderKpis(); render(); renderDetail();
+    renderKpis(); render(); openPatient();
   } catch {}
 }
 

@@ -4,3 +4,4 @@ woundscope.db
 wound_billing_review.csv
 .venv/
 *.log
+patient_status.json

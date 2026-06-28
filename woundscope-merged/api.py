@@ -9,7 +9,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -17,8 +17,21 @@ from woundscope.db import DB_PATH
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "web"
+STATUS_PATH = ROOT / "patient_status.json"   # biller workflow state (survives restart)
+VALID_STATUS = {"open", "billed", "dismissed"}
 
 app = FastAPI(title="WoundScope API")
+
+
+def _load_status() -> dict:
+    try:
+        return json.loads(STATUS_PATH.read_text())
+    except Exception:
+        return {}
+
+
+def _save_status(d: dict) -> None:
+    STATUS_PATH.write_text(json.dumps(d))
 
 
 def _conn() -> sqlite3.Connection:
@@ -61,7 +74,11 @@ def _row_to_patient(r: sqlite3.Row) -> dict:
         "wound_count": r["wound_count"] or (1 if wounds else 0),
         "wounds": wounds,
         "reasoning": r["reasoning"],
+        "status": _STATUS.get(r["patient_id"], "open"),
     }
+
+
+_STATUS = _load_status()
 
 
 @app.get("/api/summary")
@@ -70,16 +87,32 @@ def summary() -> JSONResponse:
     rows = conn.execute("SELECT decision, COUNT(*) n FROM results GROUP BY decision").fetchall()
     by = {r["decision"]: r["n"] for r in rows}
     total = conn.execute("SELECT COUNT(*) n FROM results").fetchone()["n"]
+    part_b = conn.execute(
+        "SELECT COUNT(*) n FROM results WHERE has_active_mcb=1").fetchone()["n"]
     facilities = [r["facility_id"] for r in conn.execute(
         "SELECT DISTINCT facility_id FROM results ORDER BY facility_id").fetchall()]
     conn.close()
+    billed = sum(1 for v in _STATUS.values() if v == "billed")
     return JSONResponse({
         "total": total,
         "auto_accept": by.get("auto_accept", 0),
         "flag_for_review": by.get("flag_for_review", 0),
         "reject": by.get("reject", 0),
+        "part_b_count": part_b,
+        "part_b_pct": round(100 * part_b / total) if total else 0,
+        "billed": billed,
         "facilities": facilities,
     })
+
+
+@app.post("/api/patient/{patient_id}/status")
+def set_status(patient_id: str, body: dict = Body(...)) -> JSONResponse:
+    status = (body or {}).get("status", "open")
+    if status not in VALID_STATUS:
+        return JSONResponse({"error": "invalid status"}, status_code=400)
+    _STATUS[patient_id] = status
+    _save_status(_STATUS)
+    return JSONResponse({"patient_id": patient_id, "status": status})
 
 
 @app.get("/api/results")

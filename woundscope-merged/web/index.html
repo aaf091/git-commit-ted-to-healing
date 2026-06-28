@@ -61,13 +61,19 @@
       <button class="reset" id="reset">Reset</button>
     </div>
 
-    <!-- queue (full width; detail opens in a modal) -->
+    <!-- results (queue card-view OR full output table; detail opens in a modal) -->
     <section class="panel">
       <div class="phead">
-        <h2>Review queue</h2>
-        <span class="hint"><b id="queue-count">—</b> patients · sorted by decision, then confidence · click a row to review</span>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <h2>Results</h2>
+          <div class="seg viewseg" id="view-seg">
+            <button data-v="queue" class="on">Queue</button>
+            <button data-v="table">Output table</button>
+          </div>
+        </div>
+        <span class="hint"><b id="queue-count">—</b> patients · click a row to review</span>
       </div>
-      <div class="qcols"><span>Patient</span><span>Wound &amp; confidence</span><span class="qend">Decision</span></div>
+      <div class="qcols" id="qcols"><span>Patient</span><span>Wound &amp; confidence</span><span class="qend">Decision</span></div>
       <div class="queue tall" id="queue"><div class="loading">Loading…</div></div>
     </section>
 

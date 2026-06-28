@@ -98,6 +98,22 @@ button{font-family:inherit;cursor:pointer;}
 .confbar>span{display:block;height:100%;background:var(--ink);}
 .qend{text-align:right;}
 
+/* view toggle */
+.viewseg button{padding:5px 12px;font-size:12px;}
+/* output table */
+.tablewrap{max-height:64vh;overflow:auto;}
+table.out{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.out thead th{position:sticky;top:0;background:var(--app);text-align:left;padding:9px 10px;
+  font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap;z-index:1;}
+table.out td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+table.out tbody tr{cursor:pointer;}
+table.out tbody tr:hover{background:var(--app);}
+table.out tbody tr.sel{background:var(--soft);}
+table.out td.id{font-family:'JetBrains Mono',monospace;color:var(--muted);}
+table.out td.reason{color:var(--muted);min-width:280px;max-width:360px;}
+table.out .yn{font-weight:700;}.yn.y{color:var(--good);}.yn.n{color:var(--reject);}
+table.out td.dec .pill{font-size:11px;padding:2px 9px;}
+
 /* decision pill */
 .pill{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px;border-radius:999px;
   padding:3px 11px;border:1px solid var(--ink);white-space:nowrap;}

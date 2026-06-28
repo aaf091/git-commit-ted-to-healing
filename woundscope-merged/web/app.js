@@ -7,7 +7,7 @@ const DEC = {
 const DEFAULTS = () => ({
   decisions: new Set(Object.keys(DEC)), facility: "all", status: "", search: "", minConf: 0,
 });
-const state = { all: [], summary: null, selected: null, showPHI: false, ...DEFAULTS() };
+const state = { all: [], summary: null, selected: null, showPHI: false, view: "queue", ...DEFAULTS() };
 const $ = (s) => document.querySelector(s);
 
 async function boot() {
@@ -68,6 +68,11 @@ function bindToolbar() {
   $("#conf").oninput = e => { state.minConf = +e.target.value; $("#conf-val").textContent = state.minConf.toFixed(2); render(); };
   $("#export").onclick = exportCSV;
   $("#reset").onclick = resetFilters;
+  document.querySelectorAll("#view-seg button").forEach(b => b.onclick = () => {
+    state.view = b.dataset.v;
+    document.querySelectorAll("#view-seg button").forEach(x => x.classList.toggle("on", x === b));
+    render();
+  });
   $("#phi-toggle").onclick = togglePHI;
   $("#onboard-x").onclick = () => { $("#onboard").style.display = "none"; localStorage.setItem("ws_onboard_dismissed","1"); };
 }
@@ -115,7 +120,9 @@ function filtered() {
 function render() {
   const rows = filtered();
   $("#queue-count").textContent = rows.length;
+  $("#qcols").style.display = state.view === "table" ? "none" : "";
   if (!rows.length) { $("#queue").innerHTML = `<div class="error">No patients match the filters. <button class="reset" onclick="document.getElementById('reset').click()">Reset</button></div>`; return; }
+  if (state.view === "table") { renderTable(rows); return; }
   $("#queue").innerHTML = rows.map(p => `
     <div class="qrow ${state.selected===p.patient_id?"sel":""}" data-id="${p.patient_id}" tabindex="0" role="button">
       <div><div class="qname">${maskName(p.name)}</div><div class="qid mono">${maskId(p.patient_id)} · Fac ${p.facility_id}</div></div>
@@ -135,6 +142,32 @@ function render() {
 function closePatient() {
   $("#patient-overlay").classList.remove("show");
   state.selected = null; render();
+}
+
+// Output table — per-patient rows: extracted fields, Part B status, decision, reasoning
+function renderTable(rows) {
+  const yn = (v) => v ? '<span class="yn y">Yes</span>' : '<span class="yn n">No</span>';
+  const head = ["Patient ID","Name","Fac","Decision","Conf","Part B","Type","Stage",
+    "Location","L","W","D","Drainage","Reasoning"];
+  $("#queue").innerHTML = `<div class="tablewrap"><table class="out">
+    <thead><tr>${head.map(h=>`<th>${h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(p=>`
+      <tr data-id="${p.patient_id}" class="${state.selected===p.patient_id?"sel":""}">
+        <td class="id">${maskId(p.patient_id)}</td>
+        <td>${maskName(p.name)}</td>
+        <td>${p.facility_id}</td>
+        <td class="dec">${pill(p.decision)}</td>
+        <td>${p.confidence.toFixed(2)}</td>
+        <td>${yn(p.has_active_mcb)}</td>
+        <td>${p.wound_type||"—"}${p.wound_count>1?` <span class="wbadge">${p.wound_count}</span>`:""}</td>
+        <td>${p.wound_stage||"—"}</td>
+        <td>${p.wound_location||"—"}</td>
+        <td>${p.length_cm??"—"}</td><td>${p.width_cm??"—"}</td><td>${p.depth_cm??"—"}</td>
+        <td>${p.drainage||"—"}</td>
+        <td class="reason">${p.reasoning}</td>
+      </tr>`).join("")}</tbody></table></div>`;
+  $("#queue").querySelectorAll("tbody tr").forEach(r =>
+    r.onclick = () => { state.selected = r.dataset.id; render(); openPatient(); });
 }
 
 const evRow = (cls, mark, t, d) => `<div class="ev ${cls}"><div class="mark">${mark}</div><div><div class="t">${t}</div><div class="d">${d}</div></div></div>`;

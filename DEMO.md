@@ -72,9 +72,14 @@ Click the **Reject / Flag / Auto-accept** filter and open one of each:
   honoring the `Retry-After` header; the sync reports how many 429s it absorbed.
   Per-patient fetches run concurrently so one patient's 429 doesn't stall the rest.
 - **"How accurate is the extraction?"** → Multi-source with provenance: structured
-  assessment fields first, free-text notes backfill. Two note styles handled (Envive
-  prose and terse SPN). We don't hallucinate missing fields — we surface them as gaps,
-  which is exactly what drives flag-for-review.
+  assessment fields first, free-text notes backfill. All four note styles handled
+  (SPN, Progress Note, HP Skin & Wound, IDT). We don't hallucinate missing fields —
+  we surface them as gaps, which is exactly what drives flag-for-review.
+- **"What about patients with more than one wound?"** → Handled. We segment the note
+  per measurement and cluster wound mentions by location/size across notes and
+  assessments, so a sacral ulcer and a heel wound are both captured and shown; we
+  route on the best-documented wound. (~30% of patients have two wounds — open one to
+  show the wounds list.)
 - **"Why these routing rules?"** → They're the three stated criteria: active wound,
   active Part B, documented measurements + drainage. We deliberately *don't* block a
   clean claim on a missing stage — stage is context, not a billing gate.

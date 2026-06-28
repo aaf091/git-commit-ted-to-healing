@@ -109,10 +109,44 @@ export default function PatientDetail({ rowId, onChanged }) {
           )}
         </section>
 
-        {/* Extracted wound */}
+        {/* Multi-wound banner + list */}
+        {d.wound_count > 1 && (
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+              {d.wound_count} wounds documented
+            </h3>
+            <p className="text-[11px] text-slate-400 mb-2">
+              Routing on the best-documented wound; all wounds shown below.
+            </p>
+            <div className="space-y-1.5">
+              {(d.wounds || []).map((w, i) => {
+                const isPrimary =
+                  w.location === d.wound.location && w.length_cm === d.wound.length_cm;
+                return (
+                  <div key={i}
+                    className={`rounded-md border px-2.5 py-1.5 text-xs flex items-center justify-between ${
+                      isPrimary ? "border-slate-300 bg-slate-50" : "border-slate-200"
+                    }`}>
+                    <span className="text-slate-700">
+                      {isPrimary && <span className="text-emerald-600 mr-1">★</span>}
+                      {w.wound_type || "unspecified"}{" "}
+                      <span className="text-slate-400">@ {w.location || "site n/a"}</span>
+                    </span>
+                    <span className="tabular-nums text-slate-500">
+                      {w.length_cm ?? "—"}×{w.width_cm ?? "—"}×{w.depth_cm ?? "—"}cm
+                      {w.drainage_amount ? ` · ${w.drainage_amount}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Extracted wound (primary) */}
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-            Extracted wound
+            {d.wound_count > 1 ? "Primary wound (routing basis)" : "Extracted wound"}
           </h3>
           <div className="grid grid-cols-3 gap-2 mb-2">
             {measRow("length_cm", "Length")}

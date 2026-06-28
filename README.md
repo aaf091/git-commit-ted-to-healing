@@ -24,8 +24,11 @@ PointClickCare API ──▶ Extraction ──▶ Eligibility rules ──▶ Ro
 2. **Extraction** ([extraction.py](backend/app/services/extraction.py)) — pulls wound
    type, stage, location, **length/width/depth (cm)**, drainage amount + type from
    three source shapes in order of trust: structured assessment fields → assessment
-   narrative → free-text notes (Envive prose *and* terse SPN). Every field records
-   **where it came from**.
+   narrative → free-text notes (Envive prose *and* terse SPN). Handles **multiple
+   wounds per patient** — segments free text per measurement, then clusters mentions
+   by anatomical location/size (union-find) so the same wound seen in a note and an
+   assessment merges, while a sacral ulcer and a heel wound stay distinct. Every
+   field records **where it came from**.
 3. **Eligibility + routing** ([eligibility.py](backend/app/services/eligibility.py)) —
    joins coverage + diagnoses + extracted wound and decides:
    - **auto_accept** — active wound + active Part B + complete L×W×D + drainage. Submit.

@@ -67,6 +67,9 @@ export default function EligibilityQueue({ onSelect, selectedId, refreshKey, fac
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <span>{r.wound?.wound_type || "no wound type"}</span>
+                  {r.wound_count > 1 && (
+                    <span className="text-violet-500">· {r.wound_count} wounds</span>
+                  )}
                   {r.status !== "open" && <Badge tone={r.status}>{r.status}</Badge>}
                 </div>
                 <Confidence value={r.confidence} />

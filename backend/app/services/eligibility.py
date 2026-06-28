@@ -84,6 +84,11 @@ def assess_patient(bundle: dict[str, Any], today: date | None = None) -> dict[st
                                           and not wound.get("stage")):
         add(False, "Pressure ulcer stage not documented (context, not a blocker).")
 
+    wound_count = wound.get("wound_count", 1)
+    if wound_count > 1:
+        add(True, f"{wound_count} wounds documented — routing on the best-documented "
+                  f"({wound.get('location') or wound.get('wound_type') or 'primary'}).")
+
     return {
         "row_id": str(p.get("patient_id")),
         "internal_id": p.get("id"),
@@ -101,6 +106,9 @@ def assess_patient(bundle: dict[str, Any], today: date | None = None) -> dict[st
                          "diagnosis" if has_dx else
                          "extracted" if has_extracted else "none"),
         "wound": {k: wound[k] for k in extraction.FIELDS},
+        "wound_count": wound.get("wound_count", 1),
+        "wounds": [{**{k: w.get(k) for k in extraction.FIELDS},
+                    "evidence": w.get("evidence", [])} for w in wound.get("wounds", [])],
         "measurements_complete": measurements_complete,
         "missing_measurements": missing_meas,
         "drainage_documented": drainage_documented,

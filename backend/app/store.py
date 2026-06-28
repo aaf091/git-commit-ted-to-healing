@@ -1,14 +1,10 @@
 """
-Dead-simple in-memory store. One process, one active dataset.
+In-memory store for the wound-care eligibility pipeline.
 
-Hackathon-grade on purpose: no DB, no migrations. Swap for SQLite/Postgres
-later if you genuinely need persistence. Everything keys off the most recent
-upload so the demo flow is: upload -> clean -> dedupe -> rules -> review.
-
-Flag review status (open/resolved/dismissed/confirmed) is the one thing we DO
-persist — to data/flag_status.json — so a reviewer's decisions survive a
-backend restart. Flag IDs are deterministic (rule_id::row_id), so re-uploading
-the same data lines the statuses back up.
+Holds the last sync: the raw API bundles (per patient) and the computed
+eligibility rows (routing decisions). Hackathon-grade — no DB. The one thing
+we persist to disk is the biller's human action on each patient
+(open / billed / dismissed), keyed by patient_id, so decisions survive a restart.
 """
 from __future__ import annotations
 
@@ -17,68 +13,58 @@ import os
 from threading import Lock
 from typing import Any, Optional
 
-import pandas as pd
-
-VALID_STATUSES = {"open", "resolved", "dismissed", "confirmed"}
-_STATUS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "flag_status.json")
+VALID_STATUSES = {"open", "billed", "dismissed"}
+_STATUS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "patient_status.json")
 
 
 class DataStore:
     def __init__(self) -> None:
         self._lock = Lock()
-        self.raw_df: Optional[pd.DataFrame] = None        # exactly as uploaded
-        self.clean_df: Optional[pd.DataFrame] = None       # normalized/canonical
-        self.dataset_name: Optional[str] = None
-        self.dupe_clusters: list[dict[str, Any]] = []      # from dedupe run
-        self.flags: list[dict[str, Any]] = []              # unified issue queue
-        self.column_map: dict[str, str] = {}               # canonical -> source col
-        self.flag_status: dict[str, dict[str, Any]] = self._load_status()
+        self.bundles: list[dict[str, Any]] = []      # raw API data per patient
+        self.rows: list[dict[str, Any]] = []         # eligibility decisions
+        self.rows_by_id: dict[str, dict[str, Any]] = {}
+        self.bundles_by_id: dict[str, dict[str, Any]] = {}
+        self.facilities_synced: list[int] = []
+        self.api_stats: dict[str, int] = {}
+        self.last_sync: Optional[str] = None
+        self.patient_status: dict[str, dict[str, Any]] = self._load_status()
 
-    def set_dataset(self, name: str, raw: pd.DataFrame, clean: pd.DataFrame,
-                    column_map: dict[str, str]) -> None:
+    def set_results(self, bundles: list[dict], rows: list[dict],
+                    facilities: list[int], api_stats: dict, ts: str) -> None:
         with self._lock:
-            self.dataset_name = name
-            self.raw_df = raw
-            self.clean_df = clean
-            self.column_map = column_map
-            # New data invalidates previous analysis (but NOT review statuses —
-            # those are keyed by deterministic flag_id and persisted to disk).
-            self.dupe_clusters = []
-            self.flags = []
+            self.bundles = bundles
+            self.rows = rows
+            self.rows_by_id = {r["row_id"]: r for r in rows}
+            self.bundles_by_id = {str(b["patient"].get("patient_id")): b for b in bundles}
+            self.facilities_synced = facilities
+            self.api_stats = api_stats
+            self.last_sync = ts
+            self.apply_status(self.rows)
 
     def has_data(self) -> bool:
-        return self.clean_df is not None and not self.clean_df.empty
+        return bool(self.rows)
 
-    def records(self) -> list[dict[str, Any]]:
-        if not self.has_data():
-            return []
-        return self.clean_df.to_dict(orient="records")
+    def record_by_id(self, row_id: str) -> Optional[dict[str, Any]]:
+        return self.rows_by_id.get(str(row_id))
 
-    def record_by_id(self, record_id: str) -> Optional[dict[str, Any]]:
-        if not self.has_data():
-            return None
-        df = self.clean_df
-        hit = df[df["_row_id"].astype(str) == str(record_id)]
-        if hit.empty:
-            return None
-        return hit.iloc[0].to_dict()
+    def bundle_by_id(self, row_id: str) -> Optional[dict[str, Any]]:
+        return self.bundles_by_id.get(str(row_id))
 
-    # -- review status -----------------------------------------------------
-    def apply_status(self, flags: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Stamp each flag with its review status + note (default 'open')."""
-        for f in flags:
-            st = self.flag_status.get(f["flag_id"])
-            f["status"] = st["status"] if st else "open"
-            f["status_note"] = st.get("note") if st else None
-        return flags
+    # -- human workflow status --------------------------------------------
+    def apply_status(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for r in rows:
+            st = self.patient_status.get(r["row_id"])
+            r["status"] = st["status"] if st else "open"
+            r["status_note"] = st.get("note") if st else None
+        return rows
 
-    def set_status(self, flag_id: str, status: str, note: str | None = None) -> None:
+    def set_status(self, row_id: str, status: str, note: str | None = None) -> None:
         with self._lock:
-            self.flag_status[flag_id] = {"status": status, "note": note}
-            for f in self.flags:                 # update the cached queue in place
-                if f["flag_id"] == flag_id:
-                    f["status"] = status
-                    f["status_note"] = note
+            self.patient_status[row_id] = {"status": status, "note": note}
+            r = self.rows_by_id.get(row_id)
+            if r:
+                r["status"] = status
+                r["status_note"] = note
             self._save_status()
 
     def _load_status(self) -> dict[str, dict[str, Any]]:
@@ -91,8 +77,7 @@ class DataStore:
     def _save_status(self) -> None:
         os.makedirs(os.path.dirname(_STATUS_PATH), exist_ok=True)
         with open(_STATUS_PATH, "w", encoding="utf-8") as fh:
-            json.dump(self.flag_status, fh, indent=2)
+            json.dump(self.patient_status, fh, indent=2)
 
 
-# Module-level singleton imported everywhere.
 store = DataStore()

@@ -1,124 +1,85 @@
 """
-Central configuration for the ABI hackathon kit.
+Central configuration — ABI Wound Care Billing Eligibility (Medicare Part B).
 
->>> AT KICKOFF, THIS IS THE FIRST FILE YOU EDIT. <<<
+Problem: identify which post-acute patients qualify for wound care billing under
+Medicare Part B, by ingesting a mock PointClickCare API, extracting wound details
+from free-text notes + structured assessments, and routing each patient to
+auto_accept / flag_for_review / reject with plain-English reasoning.
 
-Everything downstream (cleaning, dedupe, rules, dashboard labels) reads from
-the SCHEMA and the rule/match configs below. Re-point these to the columns in
-the real dataset and most of the pipeline adapts automatically.
+>>> THIS IS THE FILE YOU TUNE. <<<
+Everything downstream (extraction vocab, eligibility rules, routing thresholds,
+dashboard labels) reads from here.
 """
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# 1. SCHEMA  — map *canonical* field names -> the messy source column name(s).
-#    The ingestion layer renames source columns to these canonical names.
-#    List multiple candidates; the first one found in the upload wins.
+# 1. API
 # ---------------------------------------------------------------------------
-SCHEMA: dict[str, list[str]] = {
-    "patient_id":         ["patient_id", "pat_id", "mrn", "id"],
-    "first_name":         ["first_name", "fname", "given_name", "first"],
-    "last_name":          ["last_name", "lname", "family_name", "surname", "last"],
-    "dob":                ["dob", "date_of_birth", "birth_date", "birthdate"],
-    "gender":             ["gender", "sex"],
-    "phone":              ["phone", "phone_number", "contact", "mobile"],
-    "email":              ["email", "email_address"],
-    "address":            ["address", "street_address", "addr"],
-    "insurance_id":       ["insurance_id", "member_id", "policy_id", "subscriber_id"],
-    "plan_type":          ["plan_type", "plan", "coverage"],
-    "eligibility_status": ["eligibility_status", "eligibility", "coverage_status"],
-    "encounter_date":     ["encounter_date", "service_date", "visit_date", "dos"],
-    "procedure_code":     ["procedure_code", "cpt", "cpt_code", "proc_code"],
-    "procedure_desc":     ["procedure_desc", "procedure", "service", "description"],
-    "charge_amount":      ["charge_amount", "charge", "amount", "fee"],
-    "billed":             ["billed", "is_billed", "claim_submitted"],
-    "provider":           ["provider", "physician", "doctor", "rendering_provider"],
+PCC_BASE_URL = "https://hackathon.prod.pulsefoundry.ai"
+FACILITIES = {101: "Facility A", 102: "Facility B", 103: "Facility C"}
+
+# ---------------------------------------------------------------------------
+# 2. COVERAGE — what counts as billable Medicare Part B.
+# ---------------------------------------------------------------------------
+PART_B_PAYER_CODE = "MCB"  # coverage.payer_code for Medicare Part B
+PAYER_LABELS = {"MCB": "Medicare Part B", "MCA": "Medicare Part A",
+                "MCD": "Medicaid", "HMO": "HMO"}
+
+# ---------------------------------------------------------------------------
+# 3. WOUND CLINICAL VOCABULARY — drives both extraction and "is there a wound".
+# ---------------------------------------------------------------------------
+# ICD-10 prefixes that indicate an active billable wound (pressure/diabetic/
+# venous ulcers, chronic ulcers of skin, etc.).
+WOUND_ICD10_PREFIXES = ("L89", "L97", "L98.4", "I83.0", "I83.2", "E11.621", "E11.622")
+
+# Canonical wound types + the phrases that map to them (lowercased, substring).
+WOUND_TYPES = {
+    "Pressure Ulcer":      ["pressure ulcer", "pressure injury", "decubitus", "bedsore", "l89"],
+    "Diabetic Foot Ulcer": ["diabetic foot ulcer", "diabetic ulcer", "diabetic", "dfu", "e11.621", "e11.622"],
+    "Venous Ulcer":        ["venous ulcer", "venous stasis", "stasis ulcer", "venous", "i83"],
+    "Arterial Ulcer":      ["arterial ulcer", "ischemic ulcer"],
+    "Surgical Wound":      ["surgical wound", "incision", "dehiscence"],
+    "Trauma/Laceration":   ["laceration", "skin tear", "abrasion", "trauma"],
 }
 
-# Canonical fields the app treats as "required". Missing-value flagging uses this.
-REQUIRED_FIELDS: list[str] = ["patient_id", "first_name", "last_name", "dob"]
-
-# Date-like canonical fields → normalized to ISO YYYY-MM-DD during cleaning.
-DATE_FIELDS: list[str] = ["dob", "encounter_date"]
-
-# Numeric canonical fields → coerced to float during cleaning.
-NUMERIC_FIELDS: list[str] = ["charge_amount"]
-
-# ---------------------------------------------------------------------------
-# 2. MATCH CONFIG — controls RapidFuzz dedupe (services/matching.py).
-#    `blocking_key` cheaply groups records so we don't compare everyone to
-#    everyone. `weights` says how much each field contributes to the score.
-# ---------------------------------------------------------------------------
-MATCH_CONFIG = {
-    # Block on a coarse key first (here: first letter of last name + dob year).
-    "blocking_fields": ["last_name", "dob"],
-    "weights": {
-        "first_name": 0.25,
-        "last_name":  0.30,
-        "dob":        0.30,
-        "phone":      0.10,
-        "email":      0.05,
-    },
-    "match_threshold": 85.0,   # >= this weighted score => candidate duplicate
-    "review_threshold": 70.0,  # between review & match => "needs human review"
+# Drainage amount vocabulary (ordered none -> heavy). Maps note/assessment text.
+DRAINAGE_AMOUNTS = {
+    "none":     ["none", "no drainage", "dry", "minimal"],
+    "light":    ["light", "scant", "small", "low"],
+    "moderate": ["moderate", "mod ", "moderate amount"],
+    "heavy":    ["heavy", "large", "copious", "profuse"],
 }
+# Drainage *type* (serosanguineous etc.) — captured for context, not required.
+DRAINAGE_TYPES = ["serosanguineous", "serosang", "serous", "sanguineous",
+                  "purulent", "seropurulent", "bloody"]
+
+# Pressure-ulcer stage vocabulary.
+STAGE_PATTERNS = ["stage 1", "stage 2", "stage 3", "stage 4",
+                  "unstageable", "deep tissue injury", "dti"]
 
 # ---------------------------------------------------------------------------
-# 3. RULES — declarative rule set evaluated by services/rules_engine.py.
-#    Each rule is data, not code, so you can add/remove rules at kickoff
-#    without touching the engine. `expr` is a safe Python expression evaluated
-#    per-row with the row's fields as variables (see rules_engine for the
-#    whitelist of helpers available).
+# 4. ROUTING — the three decisions the biller acts on.
+#    Each patient gets exactly one. Reasoning lists which criteria passed/failed.
 # ---------------------------------------------------------------------------
-RULES: list[dict] = [
-    {
-        "id": "missed_billable_event",
-        "label": "Missed billable event",
-        "category": "revenue",
-        "severity": "high",
-        "expr": "has(procedure_code) and not truthy(billed)",
-        "explain": "An encounter has a procedure code but was never billed.",
-        "evidence_fields": ["procedure_code", "procedure_desc", "charge_amount", "billed", "encounter_date"],
-    },
-    {
-        "id": "inactive_eligibility_service",
-        "label": "Service while ineligible",
-        "category": "compliance",
-        "severity": "high",
-        "expr": "has(encounter_date) and norm(eligibility_status) in ('inactive', 'expired', 'termed')",
-        "explain": "A service was rendered while the patient's coverage was inactive.",
-        "evidence_fields": ["eligibility_status", "encounter_date", "plan_type", "procedure_code"],
-    },
-    {
-        "id": "missing_required_field",
-        "label": "Missing required field",
-        "category": "data_quality",
-        "severity": "medium",
-        "expr": "missing_any(['patient_id', 'first_name', 'last_name', 'dob'])",
-        "explain": "A record is missing one or more required identity fields.",
-        "evidence_fields": ["patient_id", "first_name", "last_name", "dob"],
-    },
-    {
-        "id": "zero_charge_with_procedure",
-        "label": "Procedure with no charge",
-        "category": "revenue",
-        "severity": "medium",
-        "expr": "has(procedure_code) and num(charge_amount) <= 0",
-        "explain": "A billable procedure was recorded with a zero or missing charge amount.",
-        "evidence_fields": ["procedure_code", "charge_amount", "encounter_date"],
-    },
-]
+# A wound is "fully measured" when length, width AND depth are all present.
+REQUIRED_MEASUREMENTS = ["length_cm", "width_cm", "depth_cm"]
+# Drainage must be documented (an amount, not just "present").
+ROUTING = {
+    "auto_accept":     {"label": "Auto-accept", "severity": "auto",
+                        "desc": "Active wound + active Part B + complete measurements + drainage all clearly documented. Biller can submit."},
+    "flag_for_review": {"label": "Flag for review", "severity": "review",
+                        "desc": "Eligible but documentation is incomplete or ambiguous. Needs a human check before billing."},
+    "reject":          {"label": "Reject", "severity": "reject",
+                        "desc": "Not billable as Part B wound care — no active wound, no Part B coverage, or nothing extractable."},
+}
+ROUTING_ORDER = {"flag_for_review": 0, "auto_accept": 1, "reject": 2}  # review first
 
 # ---------------------------------------------------------------------------
-# 4. DASHBOARD LABELS — relabel the UI for the actual problem at kickoff.
-#    The frontend reads these via GET /meta.
+# 5. DASHBOARD LABELS — relabel the UI here.
 # ---------------------------------------------------------------------------
 DASHBOARD = {
-    "app_name": "ABI Ops Radar",
-    "tagline": "Messy healthcare data in. Reviewable, evidence-backed issues out.",
-    "record_noun": "patient record",
-    "record_noun_plural": "patient records",
-    "issue_noun": "issue",
-    "issue_noun_plural": "issues",
+    "app_name": "ABI Wound-Care Eligibility Radar",
+    "tagline": "PointClickCare data in. Part B wound-care billing decisions out — with evidence.",
+    "record_noun": "patient",
+    "record_noun_plural": "patients",
 }
-
-SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}

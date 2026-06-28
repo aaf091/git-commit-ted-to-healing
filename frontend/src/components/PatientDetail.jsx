@@ -1,192 +1,214 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Badge, Confidence, Spinner } from "./ui";
+import { Badge, Confidence, DECISION_LABEL, Spinner } from "./ui";
 
-// Detail page + evidence panel. Selecting a queue item loads the full record
-// and EVERY flag attached to it, each with its evidence — the "why", not "AI says so".
-// Each flag also carries a review workflow (resolve/dismiss/confirm) and an
-// optional AI-drafted suggestion (deterministic evidence stays the source of truth).
+// Biller view: why this patient got this routing decision, with every field
+// traceable back to the coverage / diagnosis / note / assessment it came from.
 export default function PatientDetail({ rowId, onChanged }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [ai, setAi] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   function load() {
     if (!rowId) return;
     setLoading(true);
-    api.record(rowId).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
+    setAi(null);
+    api.patient(rowId).then(setData).catch(() => setData(null)).finally(() => setLoading(false));
   }
-
   useEffect(load, [rowId]);
 
   if (!rowId)
     return (
       <div className="rounded-xl border border-slate-200 bg-white h-full flex items-center justify-center">
-        <p className="text-sm text-slate-400">Select an issue to see the record + evidence</p>
+        <p className="text-sm text-slate-400">Select a patient to see the routing decision + evidence</p>
       </div>
     );
-
   if (loading) return <div className="rounded-xl border border-slate-200 bg-white h-full"><Spinner /></div>;
   if (!data) return null;
 
-  const r = data.record;
-  const name = `${r.first_name || ""} ${r.last_name || ""}`.trim() || r.patient_id || rowId;
-  const fields = Object.entries(r).filter(([k]) => !k.startsWith("_"));
+  const d = data.decision;
+  const w = d.wound || {};
 
-  function afterChange() {
-    load();          // refresh this record's flags
-    onChanged?.();   // let parent refresh stats + queue
+  async function setStatus(status) {
+    setBusy(true);
+    try { await api.setStatus(rowId, status); load(); onChanged?.(); }
+    finally { setBusy(false); }
   }
+  async function getAI() {
+    setAiLoading(true);
+    try { setAi(await api.explain(rowId)); }
+    catch { setAi({ narrative: "", next_action: "AI request failed.", source: "fallback" }); }
+    finally { setAiLoading(false); }
+  }
+
+  const measRow = (k, label) => {
+    const present = w[k] != null && w[k] !== "";
+    return (
+      <div className={`rounded-md border px-2 py-1.5 text-center ${present ? "border-slate-200" : "border-red-200 bg-red-50"}`}>
+        <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
+        <div className={`text-sm font-semibold ${present ? "text-slate-800" : "text-red-400"}`}>
+          {present ? w[k] : "missing"}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white h-full flex flex-col overflow-hidden">
       <div className="p-4 border-b border-slate-100">
-        <h2 className="text-base font-semibold text-slate-800">{name}</h2>
-        <p className="text-xs text-slate-400 font-mono">{r._row_id} · {r.patient_id}</p>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-slate-800">{d.name}</h2>
+          <Badge tone={d.decision}>{DECISION_LABEL[d.decision]}</Badge>
+        </div>
+        <p className="text-xs text-slate-400 font-mono">
+          {d.patient_id} · facility {d.facility_id} · {d.gender} · DOB {d.birth_date}
+        </p>
       </div>
 
       <div className="overflow-y-auto flex-1 p-4 space-y-5">
+        {/* Decision + reasoning */}
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-            Why this was flagged ({data.flags.length})
-          </h3>
-          <div className="space-y-2">
-            {data.flags.length === 0 && (
-              <p className="text-sm text-slate-400">No issues on this record.</p>
-            )}
-            {data.flags.map((f) => (
-              <FlagCard key={f.flag_id} flag={f} onChange={afterChange} />
-            ))}
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Decision</h3>
+            <Confidence value={d.confidence} />
           </div>
-        </section>
-
-        <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-            Record (normalized)
-          </h3>
-          <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
-            {fields.map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 px-3 py-1.5 text-sm">
-                <span className="text-slate-400">{k}</span>
-                <span className="font-medium text-slate-700 text-right truncate">
-                  {String(v ?? "—")}
-                </span>
+          <p className="text-sm text-slate-700 mb-2">{d.reasoning}</p>
+          <div className="space-y-1">
+            {d.reasons.map((r, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className={r.ok ? "text-emerald-600" : "text-red-500"}>{r.ok ? "✓" : "✗"}</span>
+                <span className="text-slate-600">{r.text}</span>
               </div>
             ))}
           </div>
         </section>
+
+        {/* AI narrative (assistive) */}
+        <section>
+          {ai ? (
+            <div className="rounded-md border border-violet-200 bg-violet-50 p-2.5 text-xs">
+              <div className="flex items-center gap-1 font-semibold text-violet-700 mb-1">
+                ✨ AI summary for the biller
+                <span className="font-normal text-violet-400">
+                  ({ai.source === "llm" ? ai.model : "deterministic fallback"})
+                </span>
+              </div>
+              {ai.narrative && <p className="text-slate-600 mb-1">{ai.narrative}</p>}
+              <p className="text-slate-700"><b>Next:</b> {ai.next_action}</p>
+            </div>
+          ) : (
+            <button
+              onClick={getAI}
+              disabled={aiLoading}
+              className="text-xs rounded-md border border-violet-200 text-violet-700 px-2.5 py-1 hover:bg-violet-50 disabled:opacity-50"
+            >
+              {aiLoading ? "…" : "✨ Explain for biller"}
+            </button>
+          )}
+        </section>
+
+        {/* Extracted wound */}
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            Extracted wound
+          </h3>
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {measRow("length_cm", "Length")}
+            {measRow("width_cm", "Width")}
+            {measRow("depth_cm", "Depth")}
+          </div>
+          <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
+            <KV k="Wound type" v={w.wound_type} />
+            <KV k="Stage" v={w.stage} />
+            <KV k="Location" v={w.location} />
+            <KV k="Drainage" v={[w.drainage_amount, w.drainage_type].filter(Boolean).join(" · ")} />
+            <KV k="Wound source" v={d.wound_source} />
+          </div>
+        </section>
+
+        {/* Source evidence — coverage, diagnoses, raw notes/assessments */}
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
+            Source data (the proof)
+          </h3>
+          <div className="space-y-2 text-xs">
+            <SrcBlock title="Coverage">
+              {data.coverage.map((c, i) => (
+                <div key={i} className="text-slate-600">
+                  {c.payer_name} ({c.payer_code}) · {String(c.effective_from).slice(0, 10)} →{" "}
+                  {c.effective_to ? String(c.effective_to).slice(0, 10) : "open"}
+                </div>
+              ))}
+            </SrcBlock>
+            <SrcBlock title="Diagnoses">
+              {data.diagnoses.map((dx, i) => (
+                <div key={i} className="text-slate-600">
+                  <span className="font-mono">{dx.icd10_code}</span> {dx.icd10_description}{" "}
+                  <Badge tone={dx.clinical_status === "active" ? "pass" : "slate"}>{dx.clinical_status}</Badge>
+                </div>
+              ))}
+            </SrcBlock>
+            <SrcBlock title={`Progress notes (${data.notes.length})`}>
+              {data.notes.map((n, i) => (
+                <div key={i} className="rounded bg-slate-50 p-2 text-slate-600 whitespace-pre-wrap">
+                  <span className="text-slate-400">[{n.note_type}] </span>{n.note_text}
+                </div>
+              ))}
+            </SrcBlock>
+            <SrcBlock title={`Assessments (${data.assessments.length})`}>
+              {data.assessments.map((a, i) => (
+                <div key={i} className="text-slate-500">
+                  {a.assessment_type} · {a.status} · {a.assessment_date}
+                </div>
+              ))}
+            </SrcBlock>
+          </div>
+        </section>
+      </div>
+
+      {/* Actions */}
+      <div className="p-3 border-t border-slate-100 flex items-center justify-between">
+        <Badge tone={d.status}>{d.status}</Badge>
+        <div className="flex gap-1.5">
+          <Act label="Mark billed" tone="emerald" disabled={busy} onClick={() => setStatus("billed")} />
+          <Act label="Dismiss" tone="slate" disabled={busy} onClick={() => setStatus("dismissed")} />
+          {d.status !== "open" && <Act label="Reopen" tone="amber" disabled={busy} onClick={() => setStatus("open")} />}
+        </div>
       </div>
     </div>
   );
 }
 
-const STATUS_TONE = {
-  open: "slate",
-  resolved: "revenue",
-  dismissed: "low",
-  confirmed: "compliance",
-};
-
-function FlagCard({ flag, onChange }) {
-  const [busy, setBusy] = useState(false);
-  const [ai, setAi] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const status = flag.status || "open";
-
-  async function setStatus(next) {
-    setBusy(true);
-    try {
-      await api.setStatus(flag.flag_id, next);
-      onChange?.();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function getSuggestion() {
-    setAiLoading(true);
-    try {
-      setAi(await api.explain(flag.flag_id));
-    } catch (e) {
-      setAi({ explanation: "", suggested_action: "AI request failed.", source: "fallback" });
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  const resolved = status === "resolved" || status === "dismissed";
-
+function KV({ k, v }) {
   return (
-    <div className={`rounded-lg border p-3 ${resolved ? "border-slate-200 bg-slate-50/60 opacity-80" : "border-slate-200"}`}>
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="text-sm font-medium text-slate-800">{flag.label}</span>
-        <div className="flex items-center gap-2">
-          <Badge tone={flag.severity}>{flag.severity}</Badge>
-          <Confidence value={flag.confidence} />
-        </div>
-      </div>
-      <p className="text-xs text-slate-500 mb-2">{flag.explanation}</p>
-
-      <div className="rounded-md bg-slate-50 p-2 grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
-        {flag.evidence.map((e, i) => (
-          <div key={i} className="flex justify-between gap-2 text-xs">
-            <span className="text-slate-400">{e.field}</span>
-            <span className="font-medium text-slate-700 truncate">{String(e.value ?? "—")}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* AI suggestion (clearly assistive; evidence above is the source of truth) */}
-      {ai && (
-        <div className="rounded-md border border-violet-200 bg-violet-50 p-2 mb-2 text-xs">
-          <div className="flex items-center gap-1 font-semibold text-violet-700 mb-1">
-            ✨ AI suggestion
-            <span className="font-normal text-violet-400">
-              ({ai.source === "llm" ? `${ai.model}` : "templated fallback"})
-            </span>
-          </div>
-          {ai.explanation && <p className="text-slate-600 mb-1">{ai.explanation}</p>}
-          <p className="text-slate-700"><b>Next:</b> {ai.suggested_action}</p>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Badge tone={STATUS_TONE[status]}>{status}</Badge>
-          {flag.related_row_ids?.length > 0 && (
-            <span className="text-xs text-slate-400">↔ {flag.related_row_ids.length} linked</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={getSuggestion}
-            disabled={aiLoading}
-            className="text-xs rounded-md border border-violet-200 text-violet-700 px-2 py-1 hover:bg-violet-50 disabled:opacity-50"
-          >
-            {aiLoading ? "…" : ai ? "↻ AI" : "✨ Suggest"}
-          </button>
-          <ActionBtn label="Resolve" tone="emerald" disabled={busy} onClick={() => setStatus("resolved")} />
-          <ActionBtn label="Dismiss" tone="slate" disabled={busy} onClick={() => setStatus("dismissed")} />
-          {status !== "open" && (
-            <ActionBtn label="Reopen" tone="amber" disabled={busy} onClick={() => setStatus("open")} />
-          )}
-        </div>
-      </div>
+    <div className="flex justify-between gap-4 px-3 py-1.5 text-sm">
+      <span className="text-slate-400">{k}</span>
+      <span className="font-medium text-slate-700 text-right">{v || "—"}</span>
     </div>
   );
 }
 
-function ActionBtn({ label, tone, onClick, disabled }) {
+function SrcBlock({ title, children }) {
+  const has = Array.isArray(children) ? children.length > 0 : !!children;
+  return (
+    <div>
+      <div className="font-medium text-slate-500 mb-1">{title}</div>
+      {has ? <div className="space-y-1">{children}</div> : <div className="text-slate-300">none</div>}
+    </div>
+  );
+}
+
+function Act({ label, tone, onClick, disabled }) {
   const tones = {
     emerald: "border-emerald-200 text-emerald-700 hover:bg-emerald-50",
     slate: "border-slate-200 text-slate-600 hover:bg-slate-50",
     amber: "border-amber-200 text-amber-700 hover:bg-amber-50",
   };
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`text-xs rounded-md border px-2 py-1 disabled:opacity-50 ${tones[tone]}`}
-    >
+    <button onClick={onClick} disabled={disabled}
+      className={`text-xs rounded-md border px-2.5 py-1 disabled:opacity-50 ${tones[tone]}`}>
       {label}
     </button>
   );

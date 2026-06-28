@@ -1,45 +1,39 @@
 """
-GET /patients          — list cleaned records (the data table)
-GET /patients/{row_id} — one record + every flag attached to it (detail page)
-
-Named /patients to match the plan, but it serves whatever the canonical record
-is for the actual problem (claims, encounters, facilities...).
+GET /patients          — the eligibility output table (one row per patient).
+GET /patients/{row_id} — full biller detail: decision + reasoning + extracted
+                         wound + the raw source data (coverage, diagnoses, notes,
+                         assessments) that backs every field.
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.services import flagging
 from app.store import store
 
 router = APIRouter()
 
 
 @router.get("/patients")
-def list_records(limit: int = Query(500, ge=1, le=10000),
-                 offset: int = Query(0, ge=0)) -> dict:
+def list_patients(limit: int = Query(1000, ge=1, le=5000),
+                  offset: int = Query(0, ge=0)) -> dict:
     if not store.has_data():
-        raise HTTPException(404, "No dataset uploaded yet.")
-    records = store.records()
-    return {
-        "total": len(records),
-        "limit": limit,
-        "offset": offset,
-        "records": records[offset:offset + limit],
-    }
+        raise HTTPException(404, "No data synced yet. POST /sync first.")
+    rows = store.rows
+    return {"total": len(rows), "rows": rows[offset:offset + limit]}
 
 
 @router.get("/patients/{row_id}")
-def get_record(row_id: str) -> dict:
+def get_patient(row_id: str) -> dict:
     if not store.has_data():
-        raise HTTPException(404, "No dataset uploaded yet.")
-    record = store.record_by_id(row_id)
-    if record is None:
-        raise HTTPException(404, f"No record with id {row_id}.")
-
-    # Attach flags. Use cached flags if a run has happened; else compute live.
-    if not store.flags:
-        store.flags, store.dupe_clusters = flagging.build_flags(store.records())
-    store.apply_status(store.flags)
-    mine = [f for f in store.flags if f["row_id"] == row_id]
-    return {"record": record, "flags": mine}
+        raise HTTPException(404, "No data synced yet.")
+    row = store.record_by_id(row_id)
+    if row is None:
+        raise HTTPException(404, f"No patient {row_id}.")
+    bundle = store.bundle_by_id(row_id) or {}
+    return {
+        "decision": row,
+        "diagnoses": bundle.get("diagnoses", []),
+        "coverage": bundle.get("coverage", []),
+        "notes": bundle.get("notes", []),
+        "assessments": bundle.get("assessments", []),
+    }

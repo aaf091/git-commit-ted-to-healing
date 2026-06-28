@@ -1,5 +1,5 @@
-// Thin API client. All calls go through Vite's /api proxy -> FastAPI :8000.
-// At kickoff you rarely touch this file; you change config.py + the components.
+// API client. All calls go through Vite's /api proxy -> FastAPI :8000.
+// Domain: wound-care Part B eligibility (sync -> route -> review).
 
 const BASE = "/api";
 
@@ -12,8 +12,8 @@ async function get(path) {
 async function post(path, body) {
   const res = await fetch(BASE + path, {
     method: "POST",
-    headers: body ? { "Content-Type": "application/json" } : {},
-    body: body ? JSON.stringify(body) : undefined,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
   });
   if (!res.ok) throw new Error((await res.text()) || res.statusText);
   return res.json();
@@ -21,29 +21,20 @@ async function post(path, body) {
 
 export const api = {
   meta: () => get("/meta"),
-  loadSample: () => post("/load-sample"),
-  exportUrl: (status) =>
-    BASE + "/flagged-events/export.csv" + (status ? `?status=${status}` : ""),
-  uploadFile: async (file) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch(BASE + "/upload", { method: "POST", body: fd });
-    if (!res.ok) throw new Error((await res.text()) || res.statusText);
-    return res.json();
-  },
-  runPipeline: () => post("/flagged-events/run"),
-  stats: () => get("/flagged-events/stats"),
-  records: (limit = 500) => get(`/patients?limit=${limit}`),
-  record: (id) => get(`/patients/${id}`),
-  flags: (filters = {}) => {
+  syncStatus: () => get("/sync/status"),
+  sync: (opts) => post("/sync", opts), // { facility_ids, limit, since }
+  patients: () => get("/patients"),
+  patient: (id) => get(`/patients/${encodeURIComponent(id)}`),
+  eligibility: (filters = {}) => {
     const q = new URLSearchParams(
       Object.entries(filters).filter(([, v]) => v !== "" && v != null)
     ).toString();
-    return get(`/flagged-events${q ? "?" + q : ""}`);
+    return get(`/eligibility${q ? "?" + q : ""}`);
   },
-  dedupe: () => post("/dedupe"),
-  rules: () => get("/rules"),
-  setStatus: (flagId, status, note) =>
-    post(`/flagged-events/${encodeURIComponent(flagId)}/status`, { status, note }),
-  explain: (flagId) => post(`/flagged-events/${encodeURIComponent(flagId)}/explain`),
+  stats: () => get("/eligibility/stats"),
+  exportUrl: (decision) =>
+    BASE + "/eligibility/export.csv" + (decision ? `?decision=${decision}` : ""),
+  setStatus: (id, status, note) =>
+    post(`/eligibility/${encodeURIComponent(id)}/status`, { status, note }),
+  explain: (id) => post(`/eligibility/${encodeURIComponent(id)}/explain`),
 };

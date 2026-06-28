@@ -1,20 +1,28 @@
-// Small shared presentational helpers used across panels.
+// Shared presentational helpers.
+
+const TONES = {
+  auto_accept: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+  flag_for_review: "bg-amber-100 text-amber-700 ring-amber-200",
+  reject: "bg-red-100 text-red-700 ring-red-200",
+  open: "bg-slate-100 text-slate-600 ring-slate-200",
+  billed: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+  dismissed: "bg-slate-100 text-slate-500 ring-slate-200",
+  slate: "bg-slate-100 text-slate-600 ring-slate-200",
+  pass: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+  fail: "bg-red-100 text-red-700 ring-red-200",
+};
+
+export const DECISION_LABEL = {
+  auto_accept: "Auto-accept",
+  flag_for_review: "Flag for review",
+  reject: "Reject",
+};
 
 export function Badge({ tone = "slate", children }) {
-  const tones = {
-    high: "bg-red-100 text-red-700 ring-red-200",
-    medium: "bg-amber-100 text-amber-700 ring-amber-200",
-    low: "bg-slate-100 text-slate-600 ring-slate-200",
-    revenue: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-    compliance: "bg-indigo-100 text-indigo-700 ring-indigo-200",
-    duplicate: "bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200",
-    data_quality: "bg-sky-100 text-sky-700 ring-sky-200",
-    slate: "bg-slate-100 text-slate-600 ring-slate-200",
-  };
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-        tones[tone] || tones.slate
+        TONES[tone] || TONES.slate
       }`}
     >
       {children}
@@ -42,12 +50,4 @@ export function Spinner({ label = "Loading…" }) {
       {label}
     </div>
   );
-}
-
-export function fmtMoney(n) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(n || 0);
 }

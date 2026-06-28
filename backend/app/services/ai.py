@@ -1,13 +1,13 @@
 """
-Optional LLM layer — drafts a plain-English explanation + suggested action for
-a flag. The DETERMINISTIC rule/dedupe result and its evidence remain the source
-of truth; the LLM only phrases the "why" and proposes a next step. The UI labels
-this clearly as assistive so a reviewer never mistakes it for the evidence.
+Optional LLM layer — drafts a plain-English, biller-facing narrative explaining
+a patient's routing decision. The DETERMINISTIC eligibility result (decision +
+pass/fail reasons + evidence) is the source of truth; the LLM only turns it into
+a sentence a non-technical biller can read. The UI labels it as assistive.
 
-Graceful by design: if ANTHROPIC_API_KEY is unset or the call fails, we return a
-deterministic templated suggestion so the demo never breaks (no API dependency).
+Graceful: with no ANTHROPIC_API_KEY (or any error), returns the deterministic
+reasoning so the demo never depends on a network call.
 
-Model: claude-haiku-4-5 — cheapest/fastest tier, ideal for short per-flag text.
+Model: claude-haiku-4-5 — cheapest/fastest tier, ideal for short narratives.
 """
 from __future__ import annotations
 
@@ -18,89 +18,81 @@ from typing import Any
 MODEL = "claude-haiku-4-5"
 
 SYSTEM = (
-    "You are a healthcare revenue-cycle / compliance assistant embedded in a "
-    "review dashboard. You are given a SINGLE issue that a deterministic rules "
-    "engine already flagged, plus its evidence fields. Do NOT re-judge whether "
-    "the issue is real — the evidence is the source of truth. Your job is only "
-    "to (1) explain the issue in one or two plain sentences a billing/ops staffer "
-    "can act on, and (2) suggest one concrete next action. Be specific and "
-    "reference the evidence. Never invent facts not present in the evidence. "
-    'Respond ONLY with JSON: {"explanation": "...", "suggested_action": "..."}'
+    "You write one short, plain-English explanation for a non-technical medical "
+    "biller, explaining why a patient was routed to a Medicare Part B wound-care "
+    "billing decision (auto_accept, flag_for_review, or reject). You are given the "
+    "deterministic decision and the exact pass/fail criteria — do NOT re-decide. "
+    "Just explain it in 1-2 warm, clear sentences and state the single next action "
+    "the biller should take. Reference the specifics (payer, wound, missing field). "
+    'Respond ONLY with JSON: {"narrative": "...", "next_action": "..."}'
 )
 
 
-def explain_flag(flag: dict[str, Any], record: dict[str, Any]) -> dict[str, Any]:
-    """Returns {explanation, suggested_action, source: 'llm'|'fallback', model?}."""
+def explain_decision(row: dict[str, Any]) -> dict[str, Any]:
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        return _fallback(flag, "No ANTHROPIC_API_KEY set — showing a templated suggestion.")
-
+        return _fallback(row, "No ANTHROPIC_API_KEY set — showing deterministic reasoning.")
     try:
-        import anthropic  # imported lazily so the app runs without the package
+        import anthropic
     except ImportError:
-        return _fallback(flag, "anthropic package not installed — templated suggestion.")
+        return _fallback(row, "anthropic package not installed.")
 
-    prompt = _build_prompt(flag, record)
     try:
-        client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
+        client = anthropic.Anthropic()
         resp = client.messages.create(
-            model=MODEL,
-            max_tokens=400,
-            system=SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
+            model=MODEL, max_tokens=400, system=SYSTEM,
+            messages=[{"role": "user", "content": _prompt(row)}],
         )
         text = next((b.text for b in resp.content if b.type == "text"), "")
         data = _parse_json(text)
         return {
-            "explanation": data.get("explanation") or flag.get("explanation", ""),
-            "suggested_action": data.get("suggested_action") or _default_action(flag),
+            "narrative": data.get("narrative") or row.get("reasoning", ""),
+            "next_action": data.get("next_action") or _default_action(row),
             "source": "llm",
             "model": MODEL,
         }
     except anthropic.AuthenticationError:
-        return _fallback(flag, "Invalid ANTHROPIC_API_KEY — templated suggestion.")
-    except Exception as e:  # noqa: BLE001 - never let the AI layer break the demo
-        return _fallback(flag, f"AI call failed ({type(e).__name__}) — templated suggestion.")
+        return _fallback(row, "Invalid ANTHROPIC_API_KEY.")
+    except Exception as e:  # noqa: BLE001
+        return _fallback(row, f"AI call failed ({type(e).__name__}).")
 
 
-def _build_prompt(flag: dict[str, Any], record: dict[str, Any]) -> str:
-    evidence = "\n".join(f"  - {e['field']}: {e['value']}" for e in flag.get("evidence", []))
-    name = f"{record.get('first_name','')} {record.get('last_name','')}".strip()
+def _prompt(row: dict[str, Any]) -> str:
+    wd = row["wound"]
+    crit = "\n".join(f"  - [{'PASS' if r['ok'] else 'FAIL'}] {r['text']}" for r in row["reasons"])
     return (
-        f"Issue type: {flag.get('label')}\n"
-        f"Category: {flag.get('category')}  |  Severity: {flag.get('severity')}  "
-        f"|  Confidence: {flag.get('confidence')}%\n"
-        f"Rule explanation: {flag.get('explanation')}\n"
-        f"Patient/record: {name or record.get('patient_id') or flag.get('row_id')}\n"
-        f"Evidence fields:\n{evidence}\n"
+        f"Decision: {row['decision']}\n"
+        f"Patient: {row['name']} ({row['patient_id']}), facility {row['facility_id']}\n"
+        f"Primary payer: {row['primary_payer_code']} | Part B active: {row['part_b_active']}\n"
+        f"Wound: type={wd.get('wound_type')} stage={wd.get('stage')} "
+        f"size={wd.get('length_cm')}x{wd.get('width_cm')}x{wd.get('depth_cm')}cm "
+        f"drainage={wd.get('drainage_amount')}\n"
+        f"Criteria:\n{crit}\n"
     )
 
 
-def _fallback(flag: dict[str, Any], note: str) -> dict[str, Any]:
+def _fallback(row: dict[str, Any], note: str) -> dict[str, Any]:
     return {
-        "explanation": flag.get("explanation", ""),
-        "suggested_action": _default_action(flag),
+        "narrative": row.get("reasoning", ""),
+        "next_action": _default_action(row),
         "source": "fallback",
         "note": note,
     }
 
 
-def _default_action(flag: dict[str, Any]) -> str:
-    """Deterministic, defensible next step per category — no model needed."""
+def _default_action(row: dict[str, Any]) -> str:
     return {
-        "revenue": "Route to billing to submit/correct the claim and capture the charge.",
-        "compliance": "Verify eligibility for the date of service before billing; document the check.",
-        "duplicate": "Open the matched records side by side and merge into a single patient record.",
-        "data_quality": "Return to intake to complete the missing required fields.",
-    }.get(flag.get("category"), "Assign to a reviewer to confirm and resolve.")
+        "auto_accept": "Submit the Part B wound-care claim — documentation is complete.",
+        "flag_for_review": "Have a nurse complete the missing documentation, then re-route.",
+        "reject": "Do not bill as Part B wound care; confirm coverage/wound status with the facility.",
+    }.get(row["decision"], "Review with a supervisor.")
 
 
 def _parse_json(text: str) -> dict[str, Any]:
     text = text.strip()
-    # Tolerate a fenced code block or surrounding prose.
-    start, end = text.find("{"), text.rfind("}")
-    if start != -1 and end != -1:
+    s, e = text.find("{"), text.rfind("}")
+    if s != -1 and e != -1:
         try:
-            return json.loads(text[start:end + 1])
+            return json.loads(text[s:e + 1])
         except json.JSONDecodeError:
             pass
     return {}

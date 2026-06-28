@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import UploadPanel from "./components/UploadPanel";
+import SyncPanel from "./components/SyncPanel";
 import StatCards from "./components/StatCards";
-import IssueQueue from "./components/IssueQueue";
+import EligibilityQueue from "./components/EligibilityQueue";
 import DataTable from "./components/DataTable";
 import PatientDetail from "./components/PatientDetail";
 
@@ -12,69 +12,62 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState("queue"); // queue | table
   const [selected, setSelected] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0); // bump to reload the queue
+  const [refreshKey, setRefreshKey] = useState(0);
   const [offline, setOffline] = useState(false);
-
-  function handleChanged() {
-    refreshStats();
-    setRefreshKey((k) => k + 1);
-  }
-
-  function checkBackend() {
-    api.meta().then((m) => { setMeta(m); setOffline(false); })
-      .catch(() => setOffline(true));
-  }
-
-  useEffect(() => {
-    checkBackend();
-    const id = setInterval(checkBackend, 5000); // recover automatically when it comes back
-    return () => clearInterval(id);
-  }, []);
 
   function refreshStats() {
     api.stats().then(setStats).catch(() => setStats(null));
   }
-
+  function handleChanged() {
+    refreshStats();
+    setRefreshKey((k) => k + 1);
+  }
   function handleLoaded() {
     setLoaded(true);
     setSelected(null);
     refreshStats();
+    setRefreshKey((k) => k + 1);
+  }
+  function checkBackend() {
+    api.meta().then((m) => { setMeta(m); setOffline(false); }).catch(() => setOffline(true));
   }
 
+  useEffect(() => {
+    checkBackend();
+    // If a sync already happened (e.g. backend restarted), pick it back up.
+    api.syncStatus().then((s) => { if (s.has_data) { setLoaded(true); refreshStats(); } }).catch(() => {});
+    const id = setInterval(checkBackend, 5000);
+    return () => clearInterval(id);
+  }, []);
+
   const d = meta?.dashboard;
+  const facilities = meta?.facilities || [];
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
       <header className="border-b border-slate-200 bg-white">
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-900">
-              {d?.app_name || "ABI Ops Radar"}
-            </h1>
+            <h1 className="text-lg font-bold text-slate-900">{d?.app_name || "ABI Wound-Care Eligibility Radar"}</h1>
             <p className="text-xs text-slate-500">{d?.tagline}</p>
           </div>
-          {meta && (
-            <div className="text-xs text-slate-400">
-              {meta.rules.length} rules · {meta.schema_fields.length} canonical fields
-            </div>
-          )}
+          <div className="text-xs text-slate-400">Medicare Part B · PointClickCare pipeline</div>
         </div>
       </header>
 
       {offline && (
         <div className="bg-red-600 text-white text-sm text-center py-2 px-4">
-          ⚠ Cannot reach the backend on <span className="font-mono">localhost:8000</span>.
-          Start it with <span className="font-mono">python -m uvicorn main:app --port 8000</span> — this banner clears automatically.
+          ⚠ Cannot reach the backend on <span className="font-mono">localhost:8000</span>. Start it with{" "}
+          <span className="font-mono">python -m uvicorn main:app --port 8000</span> — this clears automatically.
         </div>
       )}
 
       <main className="max-w-[1400px] mx-auto px-6 py-6 space-y-6">
         {!loaded ? (
-          <div className="max-w-xl mx-auto pt-10">
-            <UploadPanel onLoaded={handleLoaded} />
+          <div className="max-w-2xl mx-auto pt-8">
+            <SyncPanel facilities={facilities} onLoaded={handleLoaded} />
             <p className="text-center text-xs text-slate-400 mt-4">
-              Tip: use <span className="font-mono">backend/data/synthetic_patients.csv</span> for the demo.
+              Tip: start with one facility, ~30 patients, for a fast demo. Bump the cap for the full run.
             </p>
           </div>
         ) : (
@@ -82,23 +75,19 @@ export default function App() {
             <StatCards stats={stats} />
 
             <div className="flex items-center gap-2">
-              <TabButton active={tab === "queue"} onClick={() => setTab("queue")}>
-                Issue queue
-              </TabButton>
-              <TabButton active={tab === "table"} onClick={() => setTab("table")}>
-                Data table
-              </TabButton>
+              <TabButton active={tab === "queue"} onClick={() => setTab("queue")}>Routing queue</TabButton>
+              <TabButton active={tab === "table"} onClick={() => setTab("table")}>Eligibility table</TabButton>
               <div className="ml-auto">
-                <UploadInline onLoaded={handleLoaded} />
+                <SyncPanel facilities={facilities} onLoaded={handleLoaded} compact />
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               <div className="h-[72vh]">
                 {tab === "queue" ? (
-                  <IssueQueue onSelect={setSelected} selectedRowId={selected} refreshKey={refreshKey} />
+                  <EligibilityQueue onSelect={setSelected} selectedId={selected} refreshKey={refreshKey} facilities={facilities} />
                 ) : (
-                  <DataTable onSelect={setSelected} selectedRowId={selected} />
+                  <DataTable onSelect={setSelected} selectedId={selected} />
                 )}
               </div>
               <div className="h-[72vh]">
@@ -122,26 +111,5 @@ function TabButton({ active, onClick, children }) {
     >
       {children}
     </button>
-  );
-}
-
-// Compact re-upload control once data is loaded.
-function UploadInline({ onLoaded }) {
-  return (
-    <label className="text-xs cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:bg-slate-50">
-      Replace data
-      <input
-        type="file"
-        accept=".csv,.json"
-        className="hidden"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          await api.uploadFile(file);
-          await api.runPipeline();
-          onLoaded?.();
-        }}
-      />
-    </label>
   );
 }

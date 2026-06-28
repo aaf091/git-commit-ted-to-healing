@@ -8,7 +8,8 @@ venv/
 node_modules/
 frontend/dist/
 
-# Runtime state (per-session review decisions)
+# Runtime state (per-session biller decisions)
+backend/data/patient_status.json
 backend/data/flag_status.json
 
 # OS / editor

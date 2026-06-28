@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from woundscope import ai
 from woundscope.db import DB_PATH
 
 ROOT = Path(__file__).resolve().parent
@@ -100,6 +101,17 @@ def patient(patient_id: str) -> JSONResponse:
     if not r:
         return JSONResponse({"error": "not found"}, status_code=404)
     return JSONResponse(_row_to_patient(r))
+
+
+@app.post("/api/patient/{patient_id}/explain")
+def explain(patient_id: str) -> JSONResponse:
+    """AI-drafted, biller-facing narrative for the decision (deterministic fallback)."""
+    conn = _conn()
+    r = conn.execute("SELECT * FROM results WHERE patient_id=?", (patient_id,)).fetchone()
+    conn.close()
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return JSONResponse(ai.explain_decision(_row_to_patient(r)))
 
 
 # static frontend (mounted last so /api/* wins)

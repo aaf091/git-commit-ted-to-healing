@@ -10,6 +10,7 @@ const state = {
   decisions: new Set(["auto_accept", "flag_for_review", "reject"]),
   facility: "all", minConf: 0, search: "", selected: null,
   showPHI: false,            // HIPAA minimum-necessary: PHI masked by default
+  ai: null,                  // { patient_id, data } — assistive AI summary
 };
 
 const $ = (s) => document.querySelector(s);
@@ -116,6 +117,35 @@ function ev(stateCls, mark, title, detail) {
     <div><div class="t">${title}</div><div class="d">${detail}</div></div></div>`;
 }
 
+// Assistive AI summary — deterministic decision stays the source of truth.
+function aiSection(p) {
+  const a = state.ai && state.ai.patient_id === p.patient_id ? state.ai.data : null;
+  if (a === "loading")
+    return `<div class="section-label">AI summary for biller</div>
+            <div class="aibox"><div class="ai-loading">Drafting…</div></div>`;
+  if (a)
+    return `<div class="section-label">AI summary for biller
+              <span class="ai-src">${a.source === "llm" ? a.model : "deterministic fallback"}</span></div>
+            <div class="aibox">
+              ${a.narrative ? `<div class="ai-narr">${a.narrative}</div>` : ""}
+              <div class="ai-next"><b>Next:</b> ${a.next_action}</div>
+            </div>`;
+  return `<div class="section-label">AI summary for biller</div>
+          <div class="aibox"><button id="ai-btn" class="btn ghost">✨ Explain for biller</button></div>`;
+}
+
+async function fetchAI(pid) {
+  state.ai = { patient_id: pid, data: "loading" };
+  renderDetail();
+  try {
+    const data = await (await fetch(`/api/patient/${encodeURIComponent(pid)}/explain`, { method: "POST" })).json();
+    state.ai = { patient_id: pid, data };
+  } catch {
+    state.ai = { patient_id: pid, data: { narrative: "", next_action: "AI request failed.", source: "fallback" } };
+  }
+  renderDetail();
+}
+
 function renderDetail() {
   const p = state.all.find(x => x.patient_id === state.selected);
   const el = $("#detail");
@@ -172,6 +202,8 @@ function renderDetail() {
 
     <div class="reason">${p.reasoning}</div>
 
+    ${aiSection(p)}
+
     <div class="section-label">Extracted wound data</div>
     <div class="grid">
       <div class="kv"><span class="k">Type</span><span class="v">${p.wound_type||"—"}</span></div>
@@ -189,6 +221,9 @@ function renderDetail() {
 
     <div class="section-label">Provenance — source of each field</div>
     <div class="prov">${prov}</div>`;
+
+  const aiBtn = $("#ai-btn");
+  if (aiBtn) aiBtn.onclick = () => fetchAI(p.patient_id);
 }
 
 function exportCSV() {

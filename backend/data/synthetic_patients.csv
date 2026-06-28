@@ -1,0 +1,95 @@
+patient_id,first_name,last_name,dob,gender,phone,email,address,insurance_id,plan_type,eligibility_status,encounter_date,procedure_code,procedure_desc,charge_amount,billed,provider
+P00024, Dave,Andersen ,11-10-1980,,+16563628777,dave.andersen@example.com,254 2nd St,INS390782,Medicaid,Inactive,11/8/2025,71046,Chest X-ray,95,N,Dr. A. Patel
+P00056,Jim,Jonson,1987-01-05,F,+14712533076,jim.jonson@example.com,764 Main St,INS599380,Medicare A,ACTIVE,2025-09-19,80053,Comprehensive metabolic panel,250,Y,Dr. M. Rossi
+P00015,Elizabeth,Jonson,9/7/1949,Male,819-415-6617,elizabeth.jonson@example.com,627 2nd St,INS654634,PPO Gold,Termed,11/21/2025,99204,"Office visit, new patient",$75,N,dr. s. kim
+P00075,  Lin,Wilson  ,1950-06-08,Male,349.340.1627,lin.wilson@example.com,484 2nd St,INS971482,HMO Basic,Termed,2025-08-15,80053,Comprehensive metabolic panel,$120,N,Dr. A. Patel
+P00028,Bob,Miller,1959-11-03,,+13564443068,bob.miller@example.com,578 Main St,INS587623,PPO Silver,ACTIVE,2025-03-20,99213,"Office visit, established patient",$250,Y,dr. s. kim
+P00012,Will,Anderson,04/10/1954,Male,2582518811,will.anderson@example.com,544 Main St,INS159642,Medicaid,Active,2025-03-03,99213,"Office visit, established patient",0.00,N,Dr. R. Nguyen
+P00054, James,Wilsen ,27-02-1986,M,+19065794559,james.wilsen@example.com,242 Oak Ave,INS204180,PPO Silver,Expired,2025-11-12,71046,Chest X-ray,340,,dr. s. kim
+P00020,Bob,Jonson ,5/6/2001,Male,521.879.3041,robert.jonson@example.com,591 Main St,INS367095,PPO Gold,Termed,10-09-2025,99213,"Office visit, established patient",120,Y,Dr. L. Okafor 
+P00067,  Elizabeth,Moore  ,11/11/1965,Male,481.805.1920,elizabeth.moore@example.com,318 Oak Ave,INS573866,PPO Gold,Active,6/27/2025,93000,Electrocardiogram,$120,Y,Dr. A. Patel
+P00089, Pat,Wilson ,1953-06-17,Female,(453) 344-2586,pat.wilson@example.com,394 2nd St,INS538446,HMO Basic,active,6/19/2025,80053,Comprehensive metabolic panel,$250,Y,Dr. R. Nguyen
+P00030,  Elizabeth,Brown  ,12/25/1951,M,555.745.8018,,664 Oak Ave,INS113266,Medicare A,Inactive,2/14/2025,36415,Routine venipuncture,0.00,N,Dr. L. Okafor 
+P00040,  Jon,Davies  ,1983-05-01,,2219835415,,775 Main St,INS593355,Medicaid,Termed,08/09/2025,99204,"Office visit, new patient",95.00,N,Dr. L. Okafor 
+P00086,Jennifer,Martinez,09/12/1988,Female,7142563034,,169 Main St,INS438334,HMO Basic,ACTIVE,2025-09-10,71046,Chest X-ray,95,Y,Dr. R. Nguyen
+P00057,Liz,Smyth,11/17/1991,Female,+16116362768,liz.smyth@example.com,455 Main St,INS184714,PPO Silver,Expired,03/03/2025,93000,Electrocardiogram,95,,Dr. M. Rossi
+P00081,Jon,Johnson,10/27/1972,Male,+18765026021,jon.johnson@example.com,437 Main St,INS823270,Medicare A,ACTIVE,8/2/2025,71046,Chest X-ray,75.00,Y,Dr. L. Okafor 
+P00047,Maria,Wilsen,1951-11-23,M,532.257.5806,maria.wilsen@example.com,150 Main St,INS656968,Medicare A,Expired,11/26/2025,93000,Electrocardiogram,$250,N,Dr. R. Nguyen
+P00001,  David,Jonson  ,12/09/1946,,(289) 804-7912,,224 Main St,INS629903,Medicaid,Active,07-09-2025,99204,"Office visit, new patient",$250,N,Dr. L. Okafor 
+P00005,  David,Martinez  ,05/05/1954,,638.797.7543,david.martinez@example.com,142 2nd St,INS617488,PPO Gold,Active,02/05/2025,36415,Routine venipuncture,0.00,Y,Dr. L. Okafor 
+P00048,Maria,Wilsene,1951-11-23,M,446-709-3344,maria.wilsen@example.com,150 Main St,INS656968,Medicare A,Expired,8/21/2025,93000,Electrocardiogram,$250,N,Dr. R. Nguyen
+P00077,  Robert,Moore  ,19-04-1967,Male,2697389914,robert.moore@example.com,520 2nd St,INS121322,Medicare A,Inactive,21-01-2025,99204,"Office visit, new patient",95,N,dr. s. kim
+P00011,Lin,Johnson,1973-09-04,F,+13706168956,lin.johnson@example.com,411 Main St,INS272634,Medicare A,Active,09-07-2025,36415,Routine venipuncture,0,N,Dr. L. Okafor 
+P00090,William,Martinez,,F,(797) 561-1797,william.martinez@example.com,612 2nd St,INS805188,Medicare A,ACTIVE,2025-09-01,99213,"Office visit, established patient",340,Y,Dr. R. Nguyen
+P00004,  Jim,Taylor  ,06-04-1991,,(424) 901-6313,jim.taylor@example.com,33 Oak Ave,INS520651,PPO Silver,Active,4/19/2025,93000,Electrocardiogram,$75,,Dr. L. Okafor 
+P00061,Liz,Davis,02/19/1967,Male,980.516.6567,liz.davis@example.com,827 Oak Ave,INS986209,Medicaid,Expired,01/06/2025,99204,"Office visit, new patient",95.00,Y,dr. s. kim
+P00083,  Pat,Martinez  ,02/19/1993,Male,455-316-1424,pat.martinez@example.com,397 2nd St,INS223481,PPO Silver,ACTIVE,12/15/2025,71046,Chest X-ray,75.00,Y,dr. s. kim
+P00021, Patricia,Wilson ,05/18/1989,F,+18307825930,patricia.wilson@example.com,1 Oak Ave,INS400850,HMO Basic,Inactive,10/20/2025,99204,"Office visit, new patient",340,N,Dr. L. Okafor 
+, James,Williams ,1983-09-13,Female,7316673440,james.williams@example.com,144 Oak Ave,INS742848,PPO Silver,active,7/20/2025,99213,"Office visit, established patient",120.00,Y,dr. s. kim
+P00043,Robert,Taylor,1971-02-08,Female,933.498.9337,robert.taylor@example.com,495 Oak Ave,INS355570,Medicare A,Expired,03/13/2025,93000,Electrocardiogram,120.00,N,Dr. M. Rossi
+P00066,  Jim,Johnson  ,11/04/1977,F,441.305.3399,,617 Main St,INS897143,PPO Gold,active,16-11-2025,80053,Comprehensive metabolic panel,75.00,N,Dr. M. Rossi
+P00022,  Linda,Andersen  ,1975-12-06,Male,295.969.4848,linda.andersen@example.com,204 Main St,INS125611,PPO Gold,active,2025-08-20,80053,Comprehensive metabolic panel,0,N,Dr. L. Okafor 
+P00002, Robert,Garica ,7/11/1989,M,294.589.2584,robert.garica@example.com,619 Oak Ave,INS946335,PPO Gold,Termed,2025-08-18,99204,"Office visit, new patient",250,,Dr. A. Patel
+P00033,  Patricia,Garica  ,4/12/1976,Male,9084496016,,738 Oak Ave,INS612311,Medicaid,active,6/16/2025,80053,Comprehensive metabolic panel,75,N,Dr. A. Patel
+P00016,William,Anderson,03-01-1961,Male,3659598239,william.anderson@example.com,575 Main St,INS217308,PPO Gold,Termed,2025-03-18,80053,Comprehensive metabolic panel,120,Y,Dr. M. Rossi
+P00007,  William,Moore  ,03/12/1957,Male,700.219.2832,william.moore@example.com,852 Oak Ave,INS351083,PPO Gold,active,2025-10-03,71046,Chest X-ray,0.00,,Dr. L. Okafor 
+P00009,Elizabeth,Taylor,1959-10-08,M,2325382160,elizabeth.taylor@example.com,686 Oak Ave,INS324643,Medicaid,active,19-12-2025,99213,"Office visit, established patient",$95,N,Dr. L. Okafor 
+P00038,  Maria,Garica  ,1960-03-18,,681-498-1534,maria.garica@example.com,290 2nd St,INS576086,PPO Gold,Termed,04/09/2025,99204,"Office visit, new patient",120,Y,Dr. A. Patel
+P00065, Elizabeth,Wilsen ,23-07-1981,F,(832) 671-6928,elizabeth.wilsen@example.com,109 Main St,INS556839,Medicaid,Inactive,03-09-2025,80053,Comprehensive metabolic panel,120,Y,dr. s. kim
+P00018, Susan,Jonson ,28-01-1969,Male,(512) 433-4652,susan.jonson@example.com,409 Oak Ave,INS392136,PPO Gold,ACTIVE,21-06-2025,99204,"Office visit, new patient",250.00,N,Dr. M. Rossi
+P00060,Liz,Davis,02/19/1967,Male,769.576.2882,liz.davis@example.com,827 Oak Ave,INS986209,Medicaid,Expired,2025-10-22,99204,"Office visit, new patient",95.00,Y,dr. s. kim
+P00013,  Elizabeth,Brown  ,1982-10-02,Male,467-409-6147,elizabeth.brown@example.com,135 2nd St,INS776856,PPO Silver,Inactive,2025-06-25,93000,Electrocardiogram,$95,Y,Dr. L. Okafor 
+P00014,Elizabeth,Jonson,9/7/1949,Male,4913618179,elizabeth.jonson@example.com,627 2nd St,INS654634,PPO Gold,Termed,2025-09-10,99204,"Office visit, new patient",$75,N,dr. s. kim
+P00031, Jon,Garica ,9/21/1991,Female,948.806.5397,jon.garica@example.com,851 Main St,INS392477,Medicare A,active,19-08-2025,71046,Chest X-ray,0,N,Dr. A. Patel
+P00017,  Jon,Garcia  ,1947-05-12,M,5629987658,jon.garcia@example.com,948 Main St,INS270395,HMO Basic,Inactive,1/6/2025,80053,Comprehensive metabolic panel,250,N,Dr. R. Nguyen
+P00093, Susan,,1964-08-27,,5159421436,susan.thomas@example.com,991 2nd St,INS920934,Medicaid,Expired,2025-04-24,80053,Comprehensive metabolic panel,75.00,N,Dr. L. Okafor 
+P00073, Liz,Davis ,26-12-1993,F,+15768948218,liz.davis@example.com,797 Oak Ave,INS627335,Medicaid,Inactive,03/27/2025,99204,"Office visit, new patient",0.00,Y,Dr. R. Nguyen
+P00055,María,Martinez,1950-11-07,,4102704394,maría.martinez@example.com,891 Main St,INS444519,HMO Basic,Expired,01/09/2025,99213,"Office visit, established patient",$75,Y,Dr. M. Rossi
+P00006,John,Wilson,8/17/1983,,(968) 473-6573,john.wilson@example.com,162 Oak Ave,INS103402,PPO Silver,Expired,2025-03-17,71046,Chest X-ray,120.00,N,dr. s. kim
+P00082,Bob,Johnson,11/13/1987,F,(822) 894-8179,,242 2nd St,INS484123,PPO Silver,Inactive,10/02/2025,71046,Chest X-ray,95.00,N,Dr. L. Okafor 
+P00051, David,Smyth ,8/2/1964,Male,965-625-3877,,553 Oak Ave,INS656639,Medicaid,ACTIVE,09-03-2025,36415,Routine venipuncture,250,Y,dr. s. kim
+P00003,David,Moore,06/19/2001,Male,+12814382654,david.moore@example.com,651 Oak Ave,INS270555,PPO Silver,ACTIVE,4/22/2025,36415,Routine venipuncture,120.00,Y,Dr. A. Patel
+P00019, Robert,Jonson ,5/6/2001,Male,(646) 820-9379,robert.jonson@example.com,591 Main St,INS367095,PPO Gold,Termed,07/01/2025,99213,"Office visit, established patient",120,Y,Dr. L. Okafor 
+P00010,  Linda,Jonson  ,11/14/1951,M,(889) 869-2612,linda.jonson@example.com,348 Main St,INS360735,HMO Basic,active,09/15/2025,93000,Electrocardiogram,340,Y,Dr. R. Nguyen
+P00052, Jennifer,Johnson ,28-04-1954,M,+14707493024,jennifer.johnson@example.com,767 2nd St,INS374896,Medicaid,Inactive,2025-11-12,71046,Chest X-ray,75.00,Y,Dr. R. Nguyen
+P00050,  Susan,Davis  ,11/13/1946,M,820.963.9138,susan.davis@example.com,236 2nd St,INS940886,PPO Silver,active,11/7/2025,99213,"Office visit, established patient",0.00,N,Dr. R. Nguyen
+P00087,  Will,Browne  ,1953-11-10,F,3758746531,,885 Main St,INS185168,PPO Gold,Termed,10/09/2025,71046,Chest X-ray,95.00,Y,Dr. L. Okafor 
+P00053, Liz,Taylor ,1965-10-08,Female,(319) 343-1742,liz.taylor@example.com,505 Main St,INS201913,HMO Basic,Expired,13-03-2025,36415,Routine venipuncture,340,,Dr. M. Rossi
+P00026,  Pat,Davis  ,28-07-1993,F,+16994245471,pat.davis@example.com,399 Oak Ave,INS801364,Medicare A,Termed,27-03-2025,71046,Chest X-ray,$95,N,Dr. M. Rossi
+P00058,Will,Davies,10/17/1969,M,+18708664522,will.davies@example.com,234 Oak Ave,INS455395,Medicare A,Inactive,2025-07-24,93000,Electrocardiogram,0,N,Dr. L. Okafor 
+P00078,Pat,Johnson,1967-04-24,M,560-759-6546,pat.johnson@example.com,702 Oak Ave,INS829168,Medicare A,Termed,03/26/2025,71046,Chest X-ray,$95,N,Dr. L. Okafor 
+P00035,  Jim,Davis  ,12/18/1945,Male,(914) 329-9042,jim.davis@example.com,588 Oak Ave,INS592198,Medicare A,Inactive,2025-06-06,80053,Comprehensive metabolic panel,120,,Dr. L. Okafor 
+P00084, Jen,Williams ,1952-03-28,M,(898) 527-6692,jen.williams@example.com,298 Oak Ave,INS992717,HMO Basic,Termed,12/23/2025,93000,Electrocardiogram,250,N,Dr. M. Rossi
+P00064,James,Browne,1963-06-04,Female,7459204770,james.browne@example.com,685 Oak Ave,INS175576,Medicare A,Termed,2025-01-14,93000,Electrocardiogram,95,Y,Dr. A. Patel
+P00008, Will,Garcia ,11/16/1953,F,752.973.4295,will.garcia@example.com,688 2nd St,INS491559,Medicare A,Expired,08/04/2025,80053,Comprehensive metabolic panel,$0,N,Dr. A. Patel
+P00071,James,Miller,23-11-1964,Male,984-697-4145,james.miller@example.com,849 2nd St,INS818709,Medicaid,Active,2025-03-05,99204,"Office visit, new patient",0.00,N,dr. s. kim
+P00076,James,Taylor,20-12-2005,M,(444) 629-8489,,927 Oak Ave,INS725726,Medicaid,Active,11/17/2025,99213,"Office visit, established patient",75.00,Y,Dr. R. Nguyen
+P00045,  Lin,Wilsen  ,24-06-1947,F,7072373068,lin.wilsen@example.com,340 Main St,INS986088,Medicare A,Active,2025-09-15,36415,Routine venipuncture,340.00,Y,Dr. R. Nguyen
+P00080, Michael,Smyth ,11/7/1993,Male,+13275768159,michael.smyth@example.com,917 Oak Ave,INS455505,HMO Basic,Inactive,12/16/2025,80053,Comprehensive metabolic panel,120.00,N,dr. s. kim
+P00088,  Robert,Anderson  ,11/18/2001,Female,(504) 664-2195,,426 Oak Ave,INS587002,HMO Basic,ACTIVE,10/5/2025,36415,Routine venipuncture,75.00,Y,dr. s. kim
+P00063,Dave,Wilsen,15-10-1976,Male,6403135640,dave.wilsen@example.com,684 Oak Ave,INS147623,HMO Basic,Inactive,2025-10-02,80053,Comprehensive metabolic panel,$250,N,dr. s. kim
+P00027, John,Thomas ,1981-11-01,F,251.466.7211,john.thomas@example.com,335 Oak Ave,INS898207,Medicare A,ACTIVE,2025-07-09,36415,Routine venipuncture,340,Y,Dr. A. Patel
+P00037,Maria,Brown,25-09-1952,,589.661.8253,maria.brown@example.com,440 Oak Ave,INS696251,Medicaid,Active,2025-10-24,71046,Chest X-ray,$0,N,Dr. R. Nguyen
+P00074, Bob,Anderson ,2000-06-18,M,+19813645469,bob.anderson@example.com,151 Oak Ave,INS196168,HMO Basic,Inactive,01-06-2025,36415,Routine venipuncture,$0,N,Dr. L. Okafor 
+P00029,Bob,Miller,1959-11-03,,+15197897149,bob.miller@example.com,578 Main St,INS587623,PPO Silver,ACTIVE,2025-12-07,99213,"Office visit, established patient",$250,Y,dr. s. kim
+P00039, David,Garcia ,05/27/2003,,+19667825728,,706 Oak Ave,INS833723,Medicare A,ACTIVE,18-09-2025,99213,"Office visit, established patient",120,Y,Dr. A. Patel
+P00094,William,,07/05/1994,F,+12196516139,,708 Main St,INS530311,Medicaid,Expired,2025-08-28,99213,"Office visit, established patient",0.00,,Dr. R. Nguyen
+P00036,  Jim,Davis  ,12/18/1945,Male,703-275-1878,jim.davis@example.com,588 Oak Ave,INS592198,Medicare A,Inactive,3/26/2025,80053,Comprehensive metabolic panel,120,,Dr. L. Okafor 
+P00032,  Patricia,Garica  ,4/12/1976,Male,769-210-9464,,738 Oak Ave,INS612311,Medicaid,active,16-12-2025,80053,Comprehensive metabolic panel,75,N,Dr. A. Patel
+P00025,  Lin,Browne  ,1966-06-18,F,+19234192052,lin.browne@example.com,556 Oak Ave,INS535970,PPO Gold,active,2025-07-13,99204,"Office visit, new patient",250.00,Y,Dr. L. Okafor 
+P00091,  Pat,Wilson  ,,Male,+12755959261,pat.wilson@example.com,287 2nd St,INS813449,Medicaid,Active,04-03-2025,71046,Chest X-ray,0,Y,dr. s. kim
+P00079,Pat,Johnson,1967-04-24,M,404.242.6170,pat.johnson@example.com,702 Oak Ave,INS829168,Medicare A,Termed,13-09-2025,71046,Chest X-ray,$95,N,Dr. L. Okafor 
+P00034,Jon,Taylor,23-06-1966,F,523-322-9779,,757 Oak Ave,INS389930,Medicaid,Expired,2025-10-10,80053,Comprehensive metabolic panel,$75,Y,dr. s. kim
+P00046,  David,Garcia  ,8/26/1949,M,+15368909742,david.garcia@example.com,642 2nd St,INS896290,Medicare A,Expired,2025-01-20,80053,Comprehensive metabolic panel,$0,N,dr. s. kim
+P00070,James,Miller,23-11-1964,Male,772-585-6381,james.miller@example.com,849 2nd St,INS818709,Medicaid,Active,22-11-2025,99204,"Office visit, new patient",0.00,N,dr. s. kim
+P00044,  James,Johnson  ,7/11/1962,,+18757013434,james.johnson@example.com,354 Oak Ave,INS678727,Medicaid,Inactive,08/11/2025,99213,"Office visit, established patient",75.00,N,Dr. R. Nguyen
+P00069, William,Andersen ,3/12/1984,,(253) 846-6482,william.andersen@example.com,572 2nd St,INS505341,PPO Silver,ACTIVE,12/28/2025,80053,Comprehensive metabolic panel,340,Y,Dr. A. Patel
+P00059,Michael,Miller,1954-11-16,Male,3337691982,michael.miller@example.com,576 Oak Ave,INS802559,PPO Gold,Inactive,28-06-2025,99213,"Office visit, established patient",120.00,Y,Dr. A. Patel
+P00023,  Elizabeth,Williams  ,13-12-1990,M,+19689882746,elizabeth.williams@example.com,824 2nd St,INS643118,Medicare A,Active,2025-09-08,93000,Electrocardiogram,250,Y,Dr. R. Nguyen
+P00041,Jen,Johnson,6/14/1975,Male,621.910.9117,jen.johnson@example.com,411 2nd St,INS138479,Medicare A,Active,6/9/2025,80053,Comprehensive metabolic panel,$95,Y,Dr. L. Okafor 
+P00049,Jennifer,Browne,26-01-1987,Female,+15538015901,jennifer.browne@example.com,468 Oak Ave,INS308894,Medicare A,Inactive,08-02-2025,80053,Comprehensive metabolic panel,95.00,Y,dr. s. kim
+P00068, William,Wilson ,1974-10-18,,(687) 713-3471,william.wilson@example.com,831 Oak Ave,INS849014,PPO Gold,Expired,2025-11-06,93000,Electrocardiogram,$0,N,Dr. L. Okafor 
+P00062, Elizabeth,Wilson ,1949-03-24,Female,664.549.3578,elizabeth.wilson@example.com,333 2nd St,INS725185,PPO Gold,Active,2025-03-06,99213,"Office visit, established patient",95.00,Y,Dr. A. Patel
+P00085,  Linda,Garcia  ,8/1/1960,F,826.288.2077,linda.garcia@example.com,735 2nd St,INS601916,Medicaid,Inactive,2025-07-27,71046,Chest X-ray,$0,Y,dr. s. kim
+P00042, Robert,Taylor ,07/02/1974,Female,978.252.4335,robert.taylor@example.com,950 Oak Ave,INS559398,Medicare A,Active,01/21/2025,71046,Chest X-ray,75.00,N,Dr. R. Nguyen
+P00072,  Mike,Jonson  ,1977-09-27,F,811-585-3527,,710 2nd St,INS948343,HMO Basic,Termed,02-08-2025,36415,Routine venipuncture,75,N,Dr. R. Nguyen

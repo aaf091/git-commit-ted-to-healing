@@ -12,6 +12,11 @@ frontend/dist/
 backend/data/patient_status.json
 backend/data/flag_status.json
 
+# Stage-1 SQLite DB (produced by the ingester / copied from stage-1; not vendored here)
+backend/data/pcc_data.db
+backend/data/pcc_data.db-shm
+backend/data/pcc_data.db-wal
+
 # OS / editor
 .DS_Store
 .vscode/

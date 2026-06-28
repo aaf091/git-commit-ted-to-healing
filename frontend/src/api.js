@@ -23,6 +23,7 @@ export const api = {
   meta: () => get("/meta"),
   syncStatus: () => get("/sync/status"),
   sync: (opts) => post("/sync", opts), // { facility_ids, limit, since }
+  loadDb: (opts) => post("/load-db", opts), // run pipeline off Stage-1 SQLite DB
   patients: () => get("/patients"),
   patient: (id) => get(`/patients/${encodeURIComponent(id)}`),
   eligibility: (filters = {}) => {

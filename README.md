@@ -13,9 +13,26 @@ evidence-backed reasoning a biller can act on.
 ## What it does (the pipeline)
 
 ```
+Stage 1: PointClickCare API ──▶ SQLite (pcc_data.db)        [ingestion, queryable, resumable]
+Stage 2: SQLite ──▶ Extraction ──▶ Eligibility ──▶ Routing  [this app: extract + route]
+Stage 3: Routing ──▶ Biller dashboard                       [evidence-backed review]
+```
+
+**Two data sources, same pipeline:**
+- **Database** (default) — reads the Stage-1 `pcc_data.db` (fast, no rate-limits, the
+  queryable durable store). This is the clean team seam: ingestion is decoupled from
+  analysis. Loads all 300 patients in ~0.1s.
+- **Live API** — pulls fresh from PointClickCare, retrying through its 30% 429s.
+
+```
 PointClickCare API ──▶ Extraction ──▶ Eligibility rules ──▶ Routing + reasoning ──▶ Biller dashboard
 (429-resilient)      (notes + raw_json)  (wound+PartB+docs)   (auto/review/reject)    (evidence-backed)
 ```
+
+### Getting the database
+The Stage-1 ingester (separate branch) produces `pcc_data.db`. Drop it at
+`backend/data/pcc_data.db` (or set `PCC_DB_PATH`) and the dashboard's
+**Load from database** button lights up. No DB? Use **Pull live from API** — same result, slower.
 
 1. **Ingestion** ([pcc_client.py](backend/app/services/pcc_client.py)) — fetches
    patients, diagnoses, coverage, notes, assessments. The API returns HTTP 429 on

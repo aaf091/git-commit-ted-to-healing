@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Body, HTTPException
 
 from app.config import FACILITIES
-from app.services import eligibility
+from app.services import db_source, eligibility
 from app.services.pcc_client import PCCClient
 from app.store import store
 
@@ -52,12 +52,51 @@ def sync(body: dict = Body(default={})) -> dict:
     }
 
 
+@router.post("/load-db")
+def load_db(body: dict = Body(default={})) -> dict:
+    """
+    Run the pipeline off the Stage-1 SQLite database instead of the live API.
+    Faster, no rate-limits, and the durable/queryable source the deliverable asks
+    for. Optionally filter by facility / cap patients.
+    """
+    if not db_source.db_exists():
+        raise HTTPException(404, "No pcc_data.db found. Run the Stage-1 ingester "
+                                 "or set PCC_DB_PATH.")
+    facility_ids = body.get("facility_ids")
+    if facility_ids:
+        facility_ids = [int(f) for f in facility_ids if int(f) in FACILITIES]
+    limit = body.get("limit")
+
+    bundles = db_source.load_bundles(facility_ids=facility_ids, limit=limit)
+    if not bundles:
+        raise HTTPException(404, "Database has no patients for that filter.")
+
+    rows = eligibility.assess_all(bundles)
+    ts = datetime.now(timezone.utc).isoformat()
+    facilities = sorted({b["patient"].get("facility_id") for b in bundles})
+    counts = db_source.table_counts()
+    store.set_results(bundles, rows, facilities, {"source": "database", **counts}, ts)
+
+    return {
+        "source": "database",
+        "db_counts": counts,
+        "synced_facilities": [{"id": f, "name": FACILITIES.get(f)} for f in facilities],
+        "patient_count": len(rows),
+        "api_stats": {"source": "database", **counts},
+        "stats": eligibility.compute_stats(rows),
+        "last_sync": ts,
+    }
+
+
 @router.get("/sync/status")
 def sync_status() -> dict:
+    db_available = db_source.db_exists()
     return {
         "has_data": store.has_data(),
         "patient_count": len(store.rows),
         "facilities_synced": [{"id": f, "name": FACILITIES.get(f)} for f in store.facilities_synced],
         "api_stats": store.api_stats,
         "last_sync": store.last_sync,
+        "db_available": db_available,
+        "db_counts": db_source.table_counts() if db_available else {},
     }

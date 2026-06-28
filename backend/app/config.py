@@ -18,6 +18,14 @@ from __future__ import annotations
 PCC_BASE_URL = "https://hackathon.prod.pulsefoundry.ai"
 FACILITIES = {101: "Facility A", 102: "Facility B", 103: "Facility C"}
 
+# Stage-1 SQLite database (built by the ingestion pipeline). The analysis layer
+# reads raw records from here so it doesn't depend on the live API at demo time.
+import os as _os
+DB_PATH = _os.environ.get(
+    "PCC_DB_PATH",
+    _os.path.join(_os.path.dirname(__file__), "..", "data", "pcc_data.db"),
+)
+
 # ---------------------------------------------------------------------------
 # 2. COVERAGE — what counts as billable Medicare Part B.
 # ---------------------------------------------------------------------------

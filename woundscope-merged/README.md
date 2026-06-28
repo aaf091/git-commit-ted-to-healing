@@ -1,121 +1,121 @@
-# 🩹 WoundScope
+# WoundScope
 
-**Automated Medicare Part B wound-care billing eligibility for post-acute care.**
+**Automated Medicare Part B wound-care billing eligibility for skilled nursing facilities.**
 
-WoundScope ingests fragmented EHR data from a mock PointClickCare API, extracts
-wound details from messy multi-format clinical notes, and routes every patient
-into one of three billing decisions — **auto-accept**, **flag for review**, or
-**reject** — each with a plain-English reason and full provenance a billing
-specialist can trust.
+WoundScope reads a facility's patient records — insurance, diagnoses, and messy
+free-text nurse notes — and tells a biller **which wound patients can be billed to
+Medicare Part B, and why.** Every decision is explained, backed by the original source
+text, and shown in a clean dashboard.
 
-Built for the Pulse Foundry × ABI Frameworks Healthcare Data Hackathon.
+> Built for the Pulse Foundry × ABI Frameworks healthcare-data hackathon.
+> Runs on **synthetic** patient data — no real PHI.
 
 ---
 
-## The problem
-
-A post-acute care company can separately bill Medicare **Part B** for wound care
-only when three things are true:
-
-1. an **active wound** diagnosis (pressure ulcer, diabetic foot ulcer, venous ulcer, …)
-2. **active Medicare Part B** coverage
-3. **documented wound measurements** (length, width, depth) **and drainage**
-
-That evidence is scattered across five API endpoints, two patient-ID systems, and
-clinical notes written in inconsistent formats — and the source API fails 30% of
-requests. WoundScope automates the whole judgment.
-
-## Architecture
-
-```
- PointClickCare mock API (5 endpoints, 30% rate-limited)
-        │   resilient client: exp backoff + jitter, honors Retry-After
-        ▼
- Ingestion  ──►  SQLite (raw payloads stored verbatim)
-        │        resolves patient_id "FA-001"  →  internal id 1
-        ▼
- Extraction engine  (tiered by reliability, with provenance + confidence)
-   Tier 0  diagnosis ICD-10      → authoritative wound type + stage
-   Tier 1  assessment raw_json   → structured numeric fields
-   Tier 2  labeled note fields   → Length:/Width:/Depth:
-   Tier 3  free-text prose       → "8.0x3.5x0.2cm", "Venous to R lower leg"
-        ▼
- Routing engine  → auto_accept / flag_for_review / reject  + reasoning
-        ▼
- Output: results table  ·  CSV  ·  Streamlit dashboard
-```
-
-## What makes it robust (the three differentiators)
-
-1. **Provenance + confidence on every field.** Each extracted value records
-   *which source* it came from and how reliable that source is. Billing staff see
-   exactly why a decision was made — not a black box. This confidence score is
-   what separates auto-accept from flag-for-review.
-2. **Complete data despite a 30% failure rate.** The client retries with
-   exponential backoff + jitter and respects `Retry-After`, so the pipeline never
-   produces partial records. (Typical run: hundreds of 429s, **zero** dropped.)
-3. **Handles every note format.** The real `raw_json` is *not* the clean schema
-   the docs show — wound data hides in free-text "Wound narrative" answers. The
-   tiered extractor parses structured fields, labeled fields, and prose, and
-   backfills authoritative type/stage from the ICD-10 diagnosis.
-
-## Routing logic
-
-| Decision | When |
-|----------|------|
-| `auto_accept` | active wound dx **+** active Part B **+** complete L/W/D **+** drainage **+** confidence ≥ 0.75 **+** single wound |
-| `flag_for_review` | eligible on dx + Part B, but a measurement is missing, drainage absent, multiple wounds, or confidence below threshold |
-| `reject` | no active wound, no active Part B, or extraction too unreliable to bill |
-
-## Quick start
+## New here? Start with this.
 
 ```bash
+# 1. install (Python 3.11+)
 pip install -r requirements.txt
 
-python run.py all            # ingest all 300 patients → extract → route → CSV
-# or, for a fast demo:
-python run.py all 15
+# 2. pull the data + run the analysis  (≈ a few minutes; survives the API's 30% failures)
+python run.py all
 
-python api.py                # ABI-style web console at http://localhost:8000
+# 3. open the dashboard
+python -m uvicorn api:app --port 8000     # → http://localhost:8000
 ```
 
-Individual stages:
+Open **http://localhost:8000**, click any patient, and you'll see the whole story:
+the decision, the rules it passed/failed, and the exact note text behind each value.
+The pitch deck is at **/slides.html**.
 
-```bash
-python run.py ingest         # API → SQLite  (concurrent, retry-safe)
-python run.py process        # SQLite → results  (re-runnable, no API)
-python run.py export         # results → wound_billing_review.csv
+*(If `python` isn't 3.11+, use `python3.13` — the code uses modern type syntax.)*
+
+---
+
+## The problem (in one paragraph)
+
+A facility can bill Medicare Part B when it treats a wound — but only if the patient
+has **(1)** an active wound, **(2)** active Part B coverage, and **(3)** proper
+documentation (length, width, depth + drainage). That information is scattered across
+coverage records, diagnosis codes, and inconsistent nurse notes, so today a biller
+checks every patient by hand. WoundScope automates the collection and triage.
+
+## How it works (the pipeline)
+
+```
+PointClickCare API  →  Collect  →  Read  →  Decide  →  Show
+ (30% rate-limited)    (SQLite)   (extract) (route)   (dashboard)
 ```
 
-## Project layout
+1. **Collect** (`woundscope/ingest.py`, `api_client.py`) — pulls every record,
+   retrying through the API's 30% random failures, with a backfill pass so **no
+   patient is dropped**. Stores raw data in a local SQLite file.
+2. **Read** (`woundscope/extract.py`, `note_templates.py`, `clinical.py`) — extracts
+   wound type, location, measurements, and drainage from the 4 real note formats and 2
+   assessment formats; handles multiple wounds per note; repairs garbled text; backfills
+   wound type from the diagnosis code. Keeps an **evidence snippet** for every value.
+3. **Decide** (`woundscope/route.py`) — checks the three Part B rules and routes each
+   patient to **auto-accept / flag-for-review / reject**, with a plain-English reason
+   and a confidence score.
+4. **Show** (`api.py`, `web/`) — a dashboard with a review queue and a per-patient
+   evaluation log, evidence, multi-wound breakdown, and a billed/dismissed workflow.
+
+## The three decisions
+
+| Decision | Meaning |
+|---|---|
+| **Auto-Accept** | Has Part B + at least one fully-documented wound → ready to bill. |
+| **Flag for Review** | Eligible, but documentation is incomplete or ambiguous → a human checks. |
+| **Reject** | Not billable — no active wound, wrong insurance, or unreliable data. |
+
+On 300 synthetic patients: **135 auto-accept · 10 review · 155 reject**, 0 records
+dropped, wound depth recovered for 285/300.
+
+---
+
+## Repo map
 
 ```
-woundscope/
-  api_client.py   resilient PCC client (retry/backoff, ID resolution)
-  ingest.py       concurrent ingestion + retry + completeness backfill → SQLite
-  extract.py      tiered wound-data extraction (provenance + confidence)
-  route.py        eligibility + 3-way routing with reasoning
-  pipeline.py     orchestrates extract → route → results table
-  export.py       CSV for billing staff
-  db.py           SQLite schema
-api.py            FastAPI backend + serves the web console
-web/              ABI-style frontend (index.html, styles.css, app.js)
-run.py            end-to-end runner
+api.py              FastAPI backend: serves the results API + the web dashboard
+run.py              one-command runner: ingest → extract → route → CSV
+requirements.txt    Python dependencies
+
+woundscope/         the pipeline (importable package)
+  api_client.py     resilient PointClickCare client (retry/backoff, ID resolution)
+  ingest.py         concurrent ingestion + completeness backfill → SQLite
+  db.py             SQLite schema
+  note_templates.py parsers for the 4 real note formats + 2 assessment formats
+  clinical.py       wound ICD-10 coverage, type inference, location/abbrev repair
+  extract.py        merges sources into wounds (multi-wound clustering) + evidence
+  route.py          eligibility rules → auto-accept / review / reject + reasoning
+  pipeline.py       orchestrates extract → route → results table
+  export.py         results → CSV for billers
+
+web/                the dashboard (static front end)
+  index.html, styles.css, app.js, favicon.svg, slides.html (pitch deck)
 ```
 
-See **DESIGN.md** (architecture, diagrams, guardrails, edge cases) and
-**COMPLIANCE.md** (EHR / PHI / HIPAA posture).
+## Documentation index
 
-## Output
+| Doc | Read it for |
+|---|---|
+| **README.md** (this file) | Start here — what it is + how to run it |
+| **OVERVIEW.md** | Plain-English explanation for non-technical readers |
+| **TECHNICAL_AND_DEMO.md** | How each technical problem was solved + judge Q&A + demo script |
+| **DESIGN.md** | Architecture, diagrams, guardrails, full edge-case list |
+| **COMPLIANCE.md** | EHR / PHI / HIPAA posture |
+| **UI_GUIDE.md** | What the dashboard does + a demo walkthrough |
+| **MERGE.md** | Who built what (the team merge) |
 
-`wound_billing_review.csv` — one row per patient: extracted wound fields,
-Part B status, decision, confidence, and reasoning, sorted with auto-accepts
-first. The dashboard adds filtering and a per-patient provenance view.
+## Tech stack
 
-## Notes & next steps
+Python · FastAPI · SQLite · vanilla HTML/CSS/JavaScript · PointClickCare mock API.
+No build step, dependency-light, runs locally.
 
-- **LLM tier:** the extractor interface is built so an LLM pass can be slotted in
-  for the messiest Envive prose, with schema validation + fallback to
-  flag-for-review on low model confidence.
-- **Incremental sync:** the client already supports the `since` parameter for
-  delta loads.
+## Built by
+
+A four-person team — each owning the strongest piece, merged into one build:
+resilient ingestion + note parsers, multi-wound extraction + evidence, full diagnosis
+coverage + text repair, and confidence-gated routing + compliance + dashboard.
+See **MERGE.md** for details.

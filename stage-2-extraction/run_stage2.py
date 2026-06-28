@@ -75,6 +75,19 @@ def run_extraction() -> dict:
                     stats["flagged_for_review"] += 1
 
         wounds = group_into_wounds(extracted)
+
+        # Stale-row cleanup: if a previous run grouped this patient's
+        # records under a different wound_id (e.g. the grouping/location
+        # logic changed between runs, or a location string was corrected),
+        # the OLD wound_id stays in the table forever -- upsert only
+        # touches rows whose key matches the current run, it never removes
+        # rows that no longer correspond to anything. Delete every existing
+        # wound row for each touched patient before writing this run's
+        # fresh set, so the table always reflects exactly the current
+        # extraction and never accumulates orphaned rows from earlier runs.
+        touched_patient_ids = {w["patient_id"] for w in wounds}
+        for pid in touched_patient_ids:
+            conn.execute("DELETE FROM wounds WHERE patient_id = ?", (pid,))
         for wound_row in wounds:
             storage.upsert_wound(conn, wound_row)
         stats["wounds_identified"] = len(wounds)

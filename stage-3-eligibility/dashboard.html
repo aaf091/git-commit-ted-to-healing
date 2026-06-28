@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wound care billing eligibility dashboard</title>
+<style>
+  :root {
+    --surface-2: #ffffff; --surface-1: #f7f6f3; --surface-0: #efeee9;
+    --text-primary: #1a1a18; --text-secondary: #5f5e5a; --text-muted: #888780;
+    --border: #e3e1da; --radius: 8px;
+    --bg-success: #EAF3DE; --text-success: #27500A;
+    --bg-warning: #FAEEDA; --text-warning: #633806;
+    --bg-danger: #FCEBEB; --text-danger: #791F1F;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-2: #232220; --surface-1: #2c2b29; --surface-0: #1a1918;
+      --text-primary: #f1efe8; --text-secondary: #b4b2a9; --text-muted: #888780;
+      --border: #444441;
+      --bg-success: #173404; --text-success: #C0DD97;
+      --bg-warning: #412402; --text-warning: #FAC775;
+      --bg-danger: #501313; --text-danger: #F7C1C1;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--surface-0); color: var(--text-primary);
+    margin: 0; padding: 2rem; line-height: 1.5;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 1.5rem; }
+  select, input { height: 36px; border: 0.5px solid var(--border); border-radius: var(--radius);
+    background: var(--surface-2); color: var(--text-primary); padding: 0 10px; font-size: 14px; }
+  button { height: 36px; border: 0.5px solid var(--border); border-radius: var(--radius);
+    background: var(--surface-2); color: var(--text-primary); padding: 0 14px; font-size: 14px; cursor: pointer; }
+  button:hover { background: var(--surface-1); }
+  table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; font-weight: 500; color: var(--text-secondary);
+    cursor: pointer; position: sticky; top: 0; background: var(--surface-2); }
+  td { padding: 10px 12px; border-bottom: 0.5px solid var(--border); }
+  tr { cursor: pointer; }
+  tr:hover td { background: var(--surface-1); }
+  .badge { font-size: 12px; padding: 3px 10px; border-radius: var(--radius); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Wound care billing eligibility</h1>
+  <p class="subtitle">Medicare Part B routing decisions, built from patients/coverage/wounds data.</p>
+
+  <div style="display: flex; gap: 8px; margin-bottom: 1rem;">
+    <input type="file" id="file-input" accept="application/json" style="display:none;">
+    <button id="load-btn">Load data file (.json)</button>
+    <span id="load-status" style="font-size: 13px; color: var(--text-muted); align-self: center;"></span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem;">
+    <div style="background: var(--surface-1); border-radius: var(--radius); padding: 1rem;">
+      <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 4px;">Total patients</p>
+      <p style="font-size: 24px; font-weight: 500; margin: 0;" id="stat-total">-</p>
+    </div>
+    <div style="background: var(--bg-success); border-radius: var(--radius); padding: 1rem;">
+      <p style="font-size: 13px; color: var(--text-success); margin: 0 0 4px;">Ready to bill</p>
+      <p style="font-size: 24px; font-weight: 500; margin: 0; color: var(--text-success);" id="stat-accept">-</p>
+    </div>
+    <div style="background: var(--bg-warning); border-radius: var(--radius); padding: 1rem;">
+      <p style="font-size: 13px; color: var(--text-warning); margin: 0 0 4px;">Needs review</p>
+      <p style="font-size: 24px; font-weight: 500; margin: 0; color: var(--text-warning);" id="stat-review">-</p>
+    </div>
+    <div style="background: var(--bg-danger); border-radius: var(--radius); padding: 1rem;">
+      <p style="font-size: 13px; color: var(--text-danger); margin: 0 0 4px;">Doesn't qualify</p>
+      <p style="font-size: 24px; font-weight: 500; margin: 0; color: var(--text-danger);" id="stat-reject">-</p>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 8px; margin-bottom: 1rem; align-items: center; flex-wrap: wrap;">
+    <select id="filter-decision">
+      <option value="">All decisions</option>
+      <option value="auto_accept">Ready to bill</option>
+      <option value="flag_for_review">Needs review</option>
+      <option value="reject">Doesn't qualify</option>
+    </select>
+    <select id="filter-facility"><option value="">All facilities</option></select>
+    <input type="text" id="filter-search" placeholder="Search by name or patient ID" style="flex: 1; min-width: 200px;">
+    <span style="font-size: 13px; color: var(--text-muted);" id="result-count"></span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 1rem; align-items: start;">
+    <div style="background: var(--surface-2); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden;">
+      <div style="max-height: 560px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="name">Patient</th>
+              <th data-sort="facility_id">Facility</th>
+              <th data-sort="decision">Decision</th>
+              <th>Wound</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="detail-panel" style="background: var(--surface-2); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.25rem; min-height: 200px;">
+      <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Select a patient from the list to see the full reasoning and wound details.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Replace this with your real Stage 3 output (see export_dashboard_data.py),
+// or click "Load data file" to load a JSON export at runtime.
+let DATA = [{"patient_id": "FA-001", "name": "Agnes Dunbar", "facility_id": 101, "decision": "auto_accept", "reason": "Agnes Dunbar has active Medicare Part B coverage and a fully documented pressure ulcer at the sacrum (type, location, all three measurements, and drainage level are all on file). Ready to bill.", "wound_type": "pressure_ulcer", "location": "sacrum", "stage": 2, "length_cm": 3.2, "width_cm": 2.1, "depth_cm": 0.4, "drainage": "moderate", "confidence": "high", "wound_count": 1, "has_active_mcb": true, "has_lapsed_mcb": false, "primary_payer": "MCB"}, {"patient_id": "FA-002", "name": "Leon Dawson", "facility_id": 101, "decision": "flag_for_review", "reason": "Leon Dawson has active Medicare Part B coverage and 2 wound record(s) on file, but none have complete, confident documentation. The best-documented wound is missing: depth. Note from extraction: missing depth (template limitation). A clinician or biller should confirm the missing details before this can be billed.", "wound_type": "pressure_ulcer", "location": "right hip", "stage": 3, "length_cm": 2.9, "width_cm": 2.8, "depth_cm": null, "drainage": "heavy", "confidence": "medium", "wound_count": 2, "has_active_mcb": true, "has_lapsed_mcb": false, "primary_payer": "MCB"}, {"patient_id": "FA-003", "name": "Maria Santos", "facility_id": 101, "decision": "reject", "reason": "Maria Santos does not have Medicare Part B coverage on file (primary payer: HMO). Part B is required to bill wound care under this program, so this patient is not billable regardless of wound documentation quality.", "wound_type": null, "location": null, "stage": null, "length_cm": null, "width_cm": null, "depth_cm": null, "drainage": null, "confidence": null, "wound_count": 0, "has_active_mcb": false, "has_lapsed_mcb": false, "primary_payer": "HMO"}, {"patient_id": "FB-001", "name": "Robert Klein", "facility_id": 102, "decision": "auto_accept", "reason": "Robert Klein has active Medicare Part B coverage and a fully documented diabetic ulcer at the left foot (type, location, all three measurements, and drainage level are all on file). Ready to bill.", "wound_type": "diabetic_ulcer", "location": "left foot", "stage": null, "length_cm": 5.3, "width_cm": 4.5, "depth_cm": 0.8, "drainage": "light", "confidence": "high", "wound_count": 2, "has_active_mcb": true, "has_lapsed_mcb": false, "primary_payer": "MCB"}, {"patient_id": "FB-002", "name": "Nora Fields", "facility_id": 102, "decision": "reject", "reason": "Nora Fields has active Medicare Part B coverage, but no wound was found in their notes or assessments. There's nothing to attach a wound-care claim to.", "wound_type": null, "location": null, "stage": null, "length_cm": null, "width_cm": null, "depth_cm": null, "drainage": null, "confidence": null, "wound_count": 0, "has_active_mcb": true, "has_lapsed_mcb": false, "primary_payer": "MCB"}, {"patient_id": "FB-003", "name": "Walter Hayes", "facility_id": 102, "decision": "reject", "reason": "Walter Hayes has a Medicare Part B record on file, but it is not currently active (coverage ended 2025-06-01). Active Part B coverage at the time of service is required to bill wound care under this program, so this patient is not billable regardless of wound documentation quality.", "wound_type": "pressure_ulcer", "location": "left buttock", "stage": 4, "length_cm": 5.9, "width_cm": 4.5, "depth_cm": 1.8, "drainage": "heavy", "confidence": "high", "wound_count": 1, "has_active_mcb": false, "has_lapsed_mcb": true, "primary_payer": "MCB"}, {"patient_id": "FC-001", "name": "Doris Patel", "facility_id": 103, "decision": "flag_for_review", "reason": "Doris Patel has active Medicare Part B coverage and 1 wound record(s) on file, but none have complete, confident documentation. The best-documented wound is missing: depth. Note from extraction: missing depth (template limitation). A clinician or biller should confirm the missing details before this can be billed.", "wound_type": "surgical_wound", "location": "abdominal wall", "stage": null, "length_cm": 3.7, "width_cm": 2.0, "depth_cm": null, "drainage": "moderate", "confidence": "medium", "wound_count": 1, "has_active_mcb": true, "has_lapsed_mcb": false, "primary_payer": "MCB"}];
+
+let sortKey = "decision";
+let sortDir = 1;
+let selectedId = null;
+
+const DECISION_META = {
+  auto_accept: { label: "Ready to bill", cls: "success" },
+  flag_for_review: { label: "Needs review", cls: "warning" },
+  reject: { label: "Doesn't qualify", cls: "danger" },
+};
+
+function badge(decision) {
+  const m = DECISION_META[decision] || { label: decision, cls: "muted" };
+  return `<span class="badge" style="background: var(--bg-${m.cls}); color: var(--text-${m.cls});">${m.label}</span>`;
+}
+
+function woundSummary(row) {
+  if (!row.wound_type && row.wound_count === 0) return '<span style="color: var(--text-muted);">No wound found</span>';
+  const type = (row.wound_type || "unspecified").replace(/_/g, " ");
+  const loc = row.location || "unspecified site";
+  return `${type} \u00b7 ${loc}`;
+}
+
+function populateFacilityFilter() {
+  const facilities = [...new Set(DATA.map(d => d.facility_id))].sort((a, b) => a - b);
+  const sel = document.getElementById("filter-facility");
+  sel.innerHTML = '<option value="">All facilities</option>';
+  facilities.forEach(f => {
+    const opt = document.createElement("option");
+    opt.value = f;
+    opt.textContent = "Facility " + f;
+    sel.appendChild(opt);
+  });
+}
+
+function getFiltered() {
+  const decision = document.getElementById("filter-decision").value;
+  const facility = document.getElementById("filter-facility").value;
+  const search = document.getElementById("filter-search").value.toLowerCase();
+  let rows = DATA.filter(r => {
+    if (decision && r.decision !== decision) return false;
+    if (facility && String(r.facility_id) !== facility) return false;
+    if (search && !r.name.toLowerCase().includes(search) && !r.patient_id.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  rows.sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (av < bv) return -1 * sortDir;
+    if (av > bv) return 1 * sortDir;
+    return 0;
+  });
+  return rows;
+}
+
+function render() {
+  const rows = getFiltered();
+  document.getElementById("result-count").textContent = rows.length + " of " + DATA.length + " patients";
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.patient_id}" style="${r.patient_id === selectedId ? 'background: var(--surface-1);' : ''}">
+      <td><div style="font-weight: 500;">${r.name}</div><div style="font-size: 12px; color: var(--text-muted);">${r.patient_id}</div></td>
+      <td style="color: var(--text-secondary);">${r.facility_id}</td>
+      <td>${badge(r.decision)}</td>
+      <td style="color: var(--text-secondary); font-size: 12px;">${woundSummary(r)}</td>
+    </tr>
+  `).join("");
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.addEventListener("click", () => { selectedId = tr.dataset.id; render(); renderDetail(); });
+  });
+}
+
+function renderDetail() {
+  const panel = document.getElementById("detail-panel");
+  const row = DATA.find(d => d.patient_id === selectedId);
+  if (!row) {
+    panel.innerHTML = '<p style="color: var(--text-muted); font-size: 14px; margin: 0;">Select a patient from the list to see the full reasoning and wound details.</p>';
+    return;
+  }
+  const measurements = (row.length_cm != null)
+    ? `${row.length_cm} \u00d7 ${row.width_cm} \u00d7 ${row.depth_cm != null ? row.depth_cm : "?"} cm`
+    : "Not documented";
+  panel.innerHTML = `
+    <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 12px;">
+      <div>
+        <p style="font-size: 16px; font-weight: 500; margin: 0;">${row.name}</p>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 2px 0 0;">${row.patient_id} \u00b7 Facility ${row.facility_id}</p>
+      </div>
+      ${badge(row.decision)}
+    </div>
+    <p style="font-size: 14px; line-height: 1.6; margin: 0 0 16px;">${row.reason}</p>
+    <div style="border-top: 0.5px solid var(--border); padding-top: 12px;">
+      <table style="width: 100%; font-size: 13px;">
+        <tr><td style="color: var(--text-secondary);">Primary payer</td><td style="text-align: right;">${row.primary_payer || "unknown"}</td></tr>
+        <tr><td style="color: var(--text-secondary);">Part B active</td><td style="text-align: right;">${row.has_active_mcb ? "Yes" : (row.has_lapsed_mcb ? "Lapsed" : "No")}</td></tr>
+        <tr><td style="color: var(--text-secondary);">Wound count</td><td style="text-align: right;">${row.wound_count}</td></tr>
+        ${row.wound_count > 0 ? `
+        <tr><td style="color: var(--text-secondary);">Wound type</td><td style="text-align: right;">${(row.wound_type || "unspecified").replace(/_/g, " ")}</td></tr>
+        <tr><td style="color: var(--text-secondary);">Location</td><td style="text-align: right;">${row.location || "unspecified"}</td></tr>
+        <tr><td style="color: var(--text-secondary);">Stage</td><td style="text-align: right;">${row.stage != null ? row.stage : "N/A"}</td></tr>
+        <tr><td style="color: var(--text-secondary);">Measurements (L \u00d7 W \u00d7 D)</td><td style="text-align: right;">${measurements}</td></tr>
+        <tr><td style="color: var(--text-secondary);">Drainage</td><td style="text-align: right;">${row.drainage || "not documented"}</td></tr>
+        <tr><td style="color: var(--text-secondary);">Extraction confidence</td><td style="text-align: right;">${row.confidence || "n/a"}</td></tr>
+        ` : ""}
+      </table>
+    </div>
+  `;
+}
+
+function renderStats() {
+  document.getElementById("stat-total").textContent = DATA.length;
+  document.getElementById("stat-accept").textContent = DATA.filter(d => d.decision === "auto_accept").length;
+  document.getElementById("stat-review").textContent = DATA.filter(d => d.decision === "flag_for_review").length;
+  document.getElementById("stat-reject").textContent = DATA.filter(d => d.decision === "reject").length;
+}
+
+function renderAll() {
+  populateFacilityFilter();
+  renderStats();
+  selectedId = null;
+  render();
+  renderDetail();
+}
+
+document.querySelectorAll("th[data-sort]").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) sortDir *= -1;
+    else { sortKey = key; sortDir = 1; }
+    render();
+  });
+});
+document.getElementById("filter-decision").addEventListener("change", render);
+document.getElementById("filter-facility").addEventListener("change", render);
+document.getElementById("filter-search").addEventListener("input", render);
+
+document.getElementById("load-btn").addEventListener("click", () => document.getElementById("file-input").click());
+document.getElementById("file-input").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      DATA = parsed;
+      document.getElementById("load-status").textContent = `Loaded ${DATA.length} patients from ${file.name}`;
+      renderAll();
+    } catch (err) {
+      document.getElementById("load-status").textContent = "Could not parse that file as JSON.";
+    }
+  };
+  reader.readAsText(file);
+});
+
+renderAll();
+</script>
+</body>
+</html>

@@ -6,10 +6,11 @@
   <title>WoundScope · ABI Eligibility</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- top bar -->
   <header class="topbar">
     <div class="brand">
       <span class="logo">ABI</span>
@@ -18,46 +19,104 @@
         <div class="tagline">Medicare Part&nbsp;B Wound-Care Eligibility</div>
       </div>
     </div>
-    <div class="topbar-right">
-      <span class="facility-pill"><span class="pulse"></span><span id="live-count">live</span></span>
-      <span class="phi-toggle" id="phi-toggle" title="HIPAA minimum-necessary: PHI masked by default">
-        <span class="lock">🔒</span> <span id="phi-state">PHI Masked</span>
-      </span>
-      <button id="export" class="btn ghost">Export CSV</button>
+    <div class="tools">
+      <span class="live"><span class="pulse"></span><span id="live-count">connecting…</span></span>
+      <button class="tbtn" id="help-btn" title="How to use this dashboard">? How it works</button>
+      <button class="phi" id="phi-toggle" title="HIPAA minimum-necessary: PHI is masked by default">
+        <span id="phi-icon">🔒</span> <span id="phi-state">PHI Masked</span>
+      </button>
+      <button class="tbtn primary" id="export">↓ Export CSV</button>
     </div>
   </header>
 
-  <div class="banner">
-    <span class="lock">🔒</span>
-    <span>HIPAA-aligned: PHI minimized by default (minimum-necessary), processed locally,
-    every decision audit-logged. Demo runs on synthetic patients.</span>
+  <!-- onboarding strip (dismissible) -->
+  <div class="onboard" id="onboard">
+    <div class="steps">
+      <span><span class="num">1</span> <b>Filter</b> the queue</span>
+      <span><span class="num">2</span> <b>Click</b> a patient</span>
+      <span><span class="num">3</span> Read the <b>evaluation log</b> &amp; evidence, then mark billed</span>
+    </div>
+    <button class="x" id="onboard-x" title="Dismiss">×</button>
   </div>
 
-  <section class="kpis" id="kpis"></section>
+  <div class="wrap">
+    <!-- KPIs -->
+    <section class="kpis" id="kpis"></section>
 
-  <section class="toolbar">
-    <input id="search" class="search" type="search" placeholder="Search patient name or ID…" />
-    <div class="chips" id="decision-chips"></div>
-    <select id="facility" class="select"></select>
-    <select id="status-filter" class="select">
-      <option value="">Any status</option>
-      <option value="open">Open</option>
-      <option value="billed">Billed</option>
-      <option value="dismissed">Dismissed</option>
-    </select>
-    <label class="kicker" style="margin:0;">conf ≥ <span id="conf-val">0.00</span>
-      <input id="conf" type="range" min="0" max="1" step="0.05" value="0" /></label>
-  </section>
-
-  <main class="layout">
-    <div class="panel">
-      <div class="queue-head"><span class="kicker" style="margin:0;">Review queue · <span id="queue-count">—</span></span></div>
-      <div class="queue" id="queue"></div>
+    <!-- filters -->
+    <div class="toolbar">
+      <span class="label">Filter</span>
+      <input id="search" class="search" type="search" placeholder="Search patient name or ID…" aria-label="Search" />
+      <div class="seg" id="decision-seg" role="group" aria-label="Decision filter"></div>
+      <select id="facility" class="select" aria-label="Facility"></select>
+      <select id="status-filter" class="select" aria-label="Status">
+        <option value="">Any status</option>
+        <option value="open">Open</option>
+        <option value="billed">Billed</option>
+        <option value="dismissed">Dismissed</option>
+      </select>
+      <label class="conf">Confidence ≥ <b id="conf-val">0.00</b>
+        <input id="conf" type="range" min="0" max="1" step="0.05" value="0" aria-label="Minimum confidence" /></label>
+      <button class="reset" id="reset">Reset</button>
     </div>
-    <aside class="panel detail" id="detail">
-      <div class="detail-empty">Select a patient to see the eligibility evaluation log.</div>
-    </aside>
-  </main>
+
+    <!-- main -->
+    <div class="layout">
+      <section class="panel">
+        <div class="phead">
+          <h2>Review queue</h2>
+          <span class="hint"><b id="queue-count">—</b> patients · sorted by decision, then confidence</span>
+        </div>
+        <div class="qcols"><span>Patient</span><span>Wound &amp; confidence</span><span class="qend">Decision</span></div>
+        <div class="queue" id="queue"><div class="loading">Loading…</div></div>
+      </section>
+
+      <aside class="panel detail" id="detail">
+        <div class="empty">
+          <h3>Select a patient to review</h3>
+          <ol>
+            <li>Pick a decision filter above (start with <b>Flag for Review</b> — those need a human).</li>
+            <li>Click a patient in the queue.</li>
+            <li>Read the <b>evaluation log</b> — every rule shown as pass / fail.</li>
+            <li>Check the <b>evidence</b> for proof, then mark the patient billed.</li>
+          </ol>
+        </div>
+      </aside>
+    </div>
+
+    <div class="banner">🔒 HIPAA-aligned: PHI minimized by default (minimum-necessary), processed locally,
+      every decision audit-logged. Demo runs on synthetic patients.</div>
+  </div>
+
+  <!-- How it works modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="How it works">
+      <div class="modal-h"><h3>How WoundScope works</h3><button class="close" id="modal-x">×</button></div>
+      <div class="modal-b">
+        <h4>What this tool does</h4>
+        <p>It reads every patient's records — insurance, diagnoses, and messy nurse notes — and decides who
+        can be billed to Medicare Part B for wound care, with the reasoning and the source text behind each call.</p>
+        <h4>The three decisions</h4>
+        <div class="legend">
+          <div class="row"><span class="pill p-accept"><span class="pdot"></span>Auto-Accept</span>
+            <span>All rules clearly met — safe to send to billing.</span></div>
+          <div class="row"><span class="pill p-review"><span class="pdot"></span>Flag for Review</span>
+            <span>Eligible, but something's missing or ambiguous — a human checks it.</span></div>
+          <div class="row"><span class="pill p-reject"><span class="pdot"></span>Reject</span>
+            <span>Not billable — no active wound, wrong insurance, or unreliable data.</span></div>
+        </div>
+        <h4>How to read a patient</h4>
+        <p>The <b>evaluation log</b> shows each billing rule as a pass (✓) or fail (✕): active wound →
+        active Part B → wound reliably extracted → complete measurements (L/W/D) → drainage → confidence.
+        <b>Measurements</b> turn red when missing. <b>Wounds detected</b> lists each wound when a note
+        documents more than one (each bills separately). <b>Evidence</b> shows the exact source sentence;
+        <b>Provenance</b> shows which record each value came from.</p>
+        <h4>Privacy</h4>
+        <p>Patient names are masked by default (minimum-necessary). Use the 🔒 toggle to reveal. The demo
+        uses synthetic patients, so no real PHI is involved.</p>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

@@ -7,6 +7,18 @@ Run it: `python3.13 -m uvicorn api:app --port 8000` → open **http://localhost:
 
 ---
 
+## Built-in guidance (no manual needed)
+
+The UI explains itself:
+- A **3-step onboarding strip** at the top ("Filter → Click a patient → Read the log
+  & evidence"), dismissible (remembered per browser).
+- A **"? How it works"** button (top bar) opens a panel explaining the three
+  decisions, how to read the evaluation log, and the privacy posture.
+- The **empty detail panel** shows numbered steps until a patient is selected.
+- Tooltips on the PHI toggle, confidence bars, and filters.
+
+---
+
 ## What's on the screen (top to bottom)
 
 **1. Header.** ABI logo + "WoundScope", a live count with a pulsing dot ("X live"),

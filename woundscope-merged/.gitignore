@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+woundscope.db
+wound_billing_review.csv
+.venv/
+*.log

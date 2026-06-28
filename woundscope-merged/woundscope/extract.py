@@ -19,6 +19,12 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 
 from . import clinical
+from . import note_templates as nt
+
+# canonicalize aadit's type names to our routing/clinical vocabulary
+_WTYPE_CANON = {"diabetic_ulcer": "diabetic_foot_ulcer",
+                "venous_ulcer": "venous_ulcer"}
+_CONF_RANK = {"high": 0, "medium": 1, "low": 2}
 
 MEAS_FIELDS = ("length_cm", "width_cm", "depth_cm")
 CORE_FIELDS = ("wound_type", "stage", "location", "length_cm", "width_cm",
@@ -179,22 +185,46 @@ def _candidate(fields, source, snippet):
     return c
 
 
-def _gather(notes, assessments):
+def _drainage_type_from_raw(raw):
+    if not raw:
+        return None
+    t = raw.lower()
+    dt = next((d for d in clinical.DRAINAGE_TYPES if d in t), None)
+    return clinical.DRAINAGE_TYPE_CANON.get(dt, dt)
+
+
+def _ew_to_candidate(ew):
+    """Adapt aadit's ExtractedWound -> our candidate dict (one per wound)."""
+    wt = _WTYPE_CANON.get(ew.wound_type, ew.wound_type)
+    stage = f"Stage {ew.stage}" if isinstance(ew.stage, int) else ew.stage
+    fields = {
+        "wound_type": wt,
+        "stage": stage,
+        "location": ew.location.title() if ew.location else None,
+        "length_cm": ew.length_cm, "width_cm": ew.width_cm, "depth_cm": ew.depth_cm,
+        "drainage_type": _drainage_type_from_raw(ew.drainage_raw),
+        "drainage_amount": ew.drainage_amount,
+    }
+    c = {k: fields.get(k) for k in CORE_FIELDS}
+    c["_source"] = ew.source_type
+    c["_rank"] = _CONF_RANK.get(ew.confidence, 2)
+    c["_snippet"] = (ew.raw_text or "").strip()[:200]
+    return c
+
+
+def _gather(notes, assessments, dx_hint=None):
+    """Build candidates using aadit's template parsers (assessments + 4 note
+    templates), then hand off to our cross-source clustering."""
     cands = []
     for a in assessments:
-        flat, narrs = _raw_json(a.get("raw_json", ""))
-        if flat:
-            flat["location"] = clinical.normalize_location(flat.get("location"))
-            cands.append(_candidate(flat, "assessment.raw_json",
-                                    json.dumps(flat, default=str)))
-        for nar in narrs:
-            for seg in _segments(nar):
-                cands.append(_candidate(_fields_from_text(seg),
-                                        "assessment.narrative", seg))
+        row = {"patient_id": a.get("int_id"), "id": a.get("pk"),
+               "raw_json": a.get("raw_json"), "assessment_date": a.get("assessment_date")}
+        cands.append(_ew_to_candidate(nt.extract_from_assessment(row)))
     for n in notes:
-        txt = n.get("note_text") or ""
-        for seg in _segments(txt):
-            cands.append(_candidate(_fields_from_text(seg), "note", seg))
+        row = {"patient_id": n.get("int_id"), "id": n.get("pk"),
+               "note_text": n.get("note_text"), "effective_date": n.get("effective_date")}
+        for ew in nt.extract_from_note(row, diagnosis_hint=dx_hint):
+            cands.append(_ew_to_candidate(ew))
     return cands
 
 
@@ -260,7 +290,11 @@ def _completeness(w):
 
 # ---------- public entry ----------------------------------------------------
 def extract_for_patient(notes, assessments, diagnoses=None):
-    cands = _gather(notes or [], assessments or [])
+    dx_hint = None
+    if diagnoses:
+        dx_hint = " ".join((d.get("icd10_description") or "") for d in diagnoses
+                           if d.get("clinical_status") == "active")
+    cands = _gather(notes or [], assessments or [], dx_hint)
     wounds = _cluster(cands) if cands else []
     # drop empty clusters (no meaningful field)
     wounds = [w for w in wounds if any(w.get(k) for k in CORE_FIELDS)]
@@ -303,12 +337,22 @@ def extract_for_patient(notes, assessments, diagnoses=None):
     return ex
 
 
+def _src_reliability(label: str) -> float:
+    if not label:
+        return 0.6
+    if "structured" in label or label == "diagnosis.icd10":
+        return 1.0
+    if "narrative" in label or "envive" in label or "shorthand" in label:
+        return 0.55
+    return 0.75
+
+
 def _score(ex):
     completeness = sum(1 for k in ("wound_type",) + MEAS_FIELDS
                        if getattr(ex, k) is not None) / 4
     drain = 1.0 if ex.drainage() else 0.0
-    ranks = [_SOURCE_RANK.get(s, 9) for s in ex.sources.values()]
-    rel = (1.0 - (sum(ranks) / len(ranks)) / 9) if ranks else 0.0
+    rels = [_src_reliability(s) for s in ex.sources.values()]
+    rel = (sum(rels) / len(rels)) if rels else 0.0
     conf = 0.55 * completeness + 0.20 * drain + 0.25 * rel
     if ex.multi_wound:
         conf *= 0.85

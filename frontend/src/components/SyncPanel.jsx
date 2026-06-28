@@ -52,7 +52,7 @@ export default function SyncPanel({ facilities, onLoaded, compact }) {
   const dbTotal = dbReady ? (db.counts.patients || 0) : 0;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6">
+    <div className="rounded-xl border border-line bg-surface p-6">
       <h2 className="text-sm font-semibold text-slate-700 mb-1">Load patient data</h2>
       <p className="text-xs text-slate-500 mb-4">
         Read the Stage-1 database (fast, queryable) or pull fresh from the
@@ -69,8 +69,8 @@ export default function SyncPanel({ facilities, onLoaded, compact }) {
                 onClick={() => toggle(f.id)}
                 className={`text-sm rounded-lg border px-3 py-1.5 ${
                   picked.includes(f.id)
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    ? "border-accent bg-accent text-white"
+                    : "border-line bg-surface text-slate-600 hover:bg-soft"
                 }`}
               >
                 {f.name} <span className="opacity-60">#{f.id}</span>
@@ -96,7 +96,7 @@ export default function SyncPanel({ facilities, onLoaded, compact }) {
             onClick={() => run(true)}
             disabled={busy || picked.length === 0 || !dbReady}
             title={dbReady ? "" : "No pcc_data.db found — run the Stage-1 ingester"}
-            className="rounded-lg bg-slate-900 text-white text-sm font-medium px-4 py-2 hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-lg bg-accent text-white text-sm font-medium px-4 py-2 hover:bg-accent-hover disabled:opacity-50"
           >
             {busy ? "Loading…" : `⚡ Load from database${dbReady ? ` (${dbTotal})` : ""}`}
           </button>

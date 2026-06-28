@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Badge, DECISION_LABEL, Spinner } from "./ui";
+import { Badge, DECISION_LABEL, Spinner, maskName, maskId } from "./ui";
 
 // The eligibility output table — one row per patient, the literal deliverable.
 // Click a row to open the biller detail panel.
-export default function DataTable({ onSelect, selectedId }) {
+export default function DataTable({ onSelect, selectedId, masked }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -24,7 +24,7 @@ export default function DataTable({ onSelect, selectedId }) {
   const cell = (v) => (v == null || v === "" ? "—" : String(v));
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden h-full flex flex-col">
+    <div className="rounded-xl border border-line bg-surface overflow-hidden h-full flex flex-col">
       <div className="p-3 border-b border-slate-100 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-700">
           Eligibility table <span className="text-slate-400 font-normal">({filtered.length})</span>
@@ -33,7 +33,7 @@ export default function DataTable({ onSelect, selectedId }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search…"
-          className="text-xs rounded-md border border-slate-200 px-2 py-1 w-48"
+          className="text-xs rounded-md border border-line px-2 py-1 w-48 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
         />
       </div>
       <div className="overflow-auto flex-1">
@@ -52,10 +52,10 @@ export default function DataTable({ onSelect, selectedId }) {
                 <tr
                   key={r.row_id}
                   onClick={() => onSelect?.(r.row_id)}
-                  className={`cursor-pointer hover:bg-slate-50 ${selectedId === r.row_id ? "bg-sky-50" : ""}`}
+                  className={`cursor-pointer hover:bg-soft ${selectedId === r.row_id ? "bg-soft" : ""}`}
                 >
-                  <td className="px-3 py-1.5 text-slate-700 whitespace-nowrap">{cell(r.name)}</td>
-                  <td className="px-3 py-1.5 text-slate-400 font-mono text-xs">{cell(r.patient_id)}</td>
+                  <td className="px-3 py-1.5 text-slate-700 whitespace-nowrap">{maskName(r.name, masked)}</td>
+                  <td className="px-3 py-1.5 text-slate-400 font-mono text-xs">{maskId(r.patient_id, masked)}</td>
                   <td className="px-3 py-1.5"><Badge tone={r.decision}>{DECISION_LABEL[r.decision]}</Badge></td>
                   <td className="px-3 py-1.5 text-slate-600 whitespace-nowrap">{cell(w.wound_type)}</td>
                   <td className="px-3 py-1.5 text-slate-600 tabular-nums whitespace-nowrap">

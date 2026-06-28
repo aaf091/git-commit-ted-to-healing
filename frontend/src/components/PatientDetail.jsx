@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Badge, Confidence, DECISION_LABEL, Spinner } from "./ui";
+import { Badge, Confidence, DecisionPill, DECISION_LABEL, Spinner, maskName, maskId } from "./ui";
 
 // Biller view: why this patient got this routing decision, with every field
 // traceable back to the coverage / diagnosis / note / assessment it came from.
-export default function PatientDetail({ rowId, onChanged }) {
+export default function PatientDetail({ rowId, onChanged, masked }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [ai, setAi] = useState(null);
@@ -21,11 +21,11 @@ export default function PatientDetail({ rowId, onChanged }) {
 
   if (!rowId)
     return (
-      <div className="rounded-xl border border-slate-200 bg-white h-full flex items-center justify-center">
-        <p className="text-sm text-slate-400">Select a patient to see the routing decision + evidence</p>
+      <div className="rounded-xl border border-line bg-surface h-full flex items-center justify-center">
+        <p className="text-sm text-slate-400">Select a patient to see the eligibility evaluation log.</p>
       </div>
     );
-  if (loading) return <div className="rounded-xl border border-slate-200 bg-white h-full"><Spinner /></div>;
+  if (loading) return <div className="rounded-xl border border-line bg-surface h-full"><Spinner /></div>;
   if (!data) return null;
 
   const d = data.decision;
@@ -56,14 +56,14 @@ export default function PatientDetail({ rowId, onChanged }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white h-full flex flex-col overflow-hidden">
+    <div className="rounded-xl border border-line bg-surface h-full flex flex-col overflow-hidden">
       <div className="p-4 border-b border-slate-100">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-slate-800">{d.name}</h2>
-          <Badge tone={d.decision}>{DECISION_LABEL[d.decision]}</Badge>
+          <h2 className="text-base font-semibold text-slate-900">{maskName(d.name, masked)}</h2>
+          <DecisionPill decision={d.decision} />
         </div>
         <p className="text-xs text-slate-400 font-mono">
-          {d.patient_id} · facility {d.facility_id} · {d.gender} · DOB {d.birth_date}
+          {maskId(d.patient_id, masked)} · facility {d.facility_id} · {d.gender} · DOB {masked ? "••••-••-••" : d.birth_date}
         </p>
       </div>
 
@@ -78,7 +78,7 @@ export default function PatientDetail({ rowId, onChanged }) {
           <div className="space-y-1">
             {d.reasons.map((r, i) => (
               <div key={i} className="flex items-start gap-2 text-xs">
-                <span className={r.ok ? "text-emerald-600" : "text-red-500"}>{r.ok ? "✓" : "✗"}</span>
+                <span className={r.ok ? "text-good" : "text-red-500"}>{r.ok ? "✓" : "✗"}</span>
                 <span className="text-slate-600">{r.text}</span>
               </div>
             ))}
@@ -88,10 +88,10 @@ export default function PatientDetail({ rowId, onChanged }) {
         {/* AI narrative (assistive) */}
         <section>
           {ai ? (
-            <div className="rounded-md border border-violet-200 bg-violet-50 p-2.5 text-xs">
-              <div className="flex items-center gap-1 font-semibold text-violet-700 mb-1">
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs">
+              <div className="flex items-center gap-1 font-semibold text-slate-700 mb-1">
                 ✨ AI summary for the biller
-                <span className="font-normal text-violet-400">
+                <span className="font-normal text-slate-400">
                   ({ai.source === "llm" ? ai.model : "deterministic fallback"})
                 </span>
               </div>
@@ -102,7 +102,7 @@ export default function PatientDetail({ rowId, onChanged }) {
             <button
               onClick={getAI}
               disabled={aiLoading}
-              className="text-xs rounded-md border border-violet-200 text-violet-700 px-2.5 py-1 hover:bg-violet-50 disabled:opacity-50"
+              className="text-xs rounded-md border border-slate-300 text-slate-700 px-2.5 py-1 hover:bg-slate-50 disabled:opacity-50"
             >
               {aiLoading ? "…" : "✨ Explain for biller"}
             </button>
@@ -128,7 +128,7 @@ export default function PatientDetail({ rowId, onChanged }) {
                       isPrimary ? "border-slate-300 bg-slate-50" : "border-slate-200"
                     }`}>
                     <span className="text-slate-700">
-                      {isPrimary && <span className="text-emerald-600 mr-1">★</span>}
+                      {isPrimary && <span className="text-good mr-1">★</span>}
                       {w.wound_type || "unspecified"}{" "}
                       <span className="text-slate-400">@ {w.location || "site n/a"}</span>
                     </span>
@@ -236,7 +236,7 @@ function SrcBlock({ title, children }) {
 
 function Act({ label, tone, onClick, disabled }) {
   const tones = {
-    emerald: "border-emerald-200 text-emerald-700 hover:bg-emerald-50",
+    emerald: "border-good/30 text-good hover:bg-[rgba(31,148,102,0.08)]",
     slate: "border-slate-200 text-slate-600 hover:bg-slate-50",
     amber: "border-amber-200 text-amber-700 hover:bg-amber-50",
   };

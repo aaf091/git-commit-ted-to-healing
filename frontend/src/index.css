@@ -1,12 +1,34 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   ABI brand tokens (from abiframeworks.com): warm cream canvas, orange accent,
+   warm near-black ink, Inter + JetBrains Mono. Tailwind v4 turns each
+   --color-* / --font-* into utilities (bg-cream, text-ink, bg-accent, font-mono…).
+--------------------------------------------------------------------------- */
+@theme {
+  --color-cream: #faf7f4; /* page canvas */
+  --color-surface: #ffffff; /* cards / elevated */
+  --color-soft: #f0eae3; /* subtle warm fill (hover/selected) */
+  --color-ink: #121416; /* warm near-black text + dark pills */
+  --color-line: rgba(18, 20, 22, 0.1); /* hairline borders */
+  --color-accent: #e8491b; /* signature ABI orange */
+  --color-accent-hover: #d43d10;
+  --color-accent-soft: rgba(232, 73, 27, 0.1);
+  --color-good: #1f9466; /* success / auto-accept */
+  --color-peach: #e8891b; /* warning / flag */
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
 :root {
   color-scheme: light;
 }
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  font-family: var(--font-sans);
+  background: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
 }

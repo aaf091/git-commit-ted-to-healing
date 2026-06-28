@@ -5,7 +5,7 @@ const DEC = {
   reject:         { label: "Reject",          pill: "p-reject", dot: "dot-reject" },
 };
 const DEFAULTS = () => ({
-  decisions: new Set(Object.keys(DEC)), facility: "all", status: "", search: "",
+  decisions: new Set(Object.keys(DEC)), facility: "all", status: "", search: "", minConf: 0,
 });
 const state = { all: [], summary: null, selected: null, showPHI: false, ...DEFAULTS() };
 const $ = (s) => document.querySelector(s);
@@ -21,7 +21,18 @@ async function boot() {
   }
   $("#live-count").textContent = `${state.all.length} patients live`;
   if (localStorage.getItem("ws_onboard_dismissed")) $("#onboard").style.display = "none";
+  setupConfidence();
   renderKpis(); renderSeg(); renderFacilities(); bindToolbar(); bindHelp(); render();
+}
+
+// ---- confidence slider auto-fits the real data range, so it always filters ----
+function setupConfidence() {
+  const confs = state.all.map(p => p.confidence);
+  const lo = confs.length ? Math.floor(Math.min(...confs) * 20) / 20 : 0;  // round down to 0.05
+  state.confFloor = lo; state.minConf = lo;
+  const s = $("#conf");
+  s.min = lo; s.max = 1; s.value = lo;
+  $("#conf-val").textContent = lo.toFixed(2);
 }
 
 // ---- PHI (HIPAA minimum-necessary) ----
@@ -54,6 +65,7 @@ function bindToolbar() {
   $("#search").oninput = e => { state.search = e.target.value.toLowerCase(); render(); };
   $("#facility").onchange = e => { state.facility = e.target.value; render(); };
   $("#status-filter").onchange = e => { state.status = e.target.value; render(); };
+  $("#conf").oninput = e => { state.minConf = +e.target.value; $("#conf-val").textContent = state.minConf.toFixed(2); render(); };
   $("#export").onclick = exportCSV;
   $("#reset").onclick = resetFilters;
   $("#phi-toggle").onclick = togglePHI;
@@ -83,7 +95,9 @@ function togglePHI() {
 }
 function resetFilters() {
   Object.assign(state, DEFAULTS());
+  state.minConf = state.confFloor ?? 0;
   $("#search").value = ""; $("#facility").value = "all"; $("#status-filter").value = "";
+  $("#conf").value = state.minConf; $("#conf-val").textContent = state.minConf.toFixed(2);
   document.querySelectorAll("#decision-seg button").forEach(b => b.classList.add("on"));
   render();
 }
@@ -94,6 +108,7 @@ function filtered() {
     state.decisions.has(p.decision) &&
     (state.facility === "all" || String(p.facility_id) === state.facility) &&
     (!state.status || (p.status || "open") === state.status) &&
+    p.confidence >= state.minConf &&
     (!state.search || p.name.toLowerCase().includes(state.search) || p.patient_id.toLowerCase().includes(state.search)));
 }
 

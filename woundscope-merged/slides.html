@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WoundScope — Pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{--ink:#0d0f12;--muted:#5f6672;--faint:#9aa0aa;--line:#e8e9ec;--bg:#fff;--app:#f6f7f8;
+  --good:#15835f;--review:#b45309;--reject:#9aa0aa;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'Inter',-apple-system,sans-serif;color:var(--ink);background:#0d0f12;}
+.deck{height:100vh;width:100vw;overflow:hidden;position:relative;}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+  padding:8vh 9vw;background:var(--bg);}
+.slide.active{display:flex;animation:fade .35s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+.kick{font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--faint);display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+.kick::before{content:"";width:28px;height:1.5px;background:var(--ink);}
+h1{font-size:64px;font-weight:900;letter-spacing:-.03em;line-height:1.02;}
+h2{font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-bottom:18px;}
+h1 em,h2 em{font-style:italic;color:var(--muted);}
+p,li{font-size:23px;line-height:1.5;color:#26292e;}
+.lead{font-size:27px;color:var(--muted);max-width:60ch;margin-top:6px;}
+ul{margin-top:14px;padding-left:0;list-style:none;}
+li{margin:14px 0;padding-left:30px;position:relative;}
+li::before{content:"";position:absolute;left:0;top:13px;width:9px;height:9px;border-radius:50%;background:var(--ink);}
+.big{font-size:34px;font-weight:800;}
+.logo{font-weight:900;letter-spacing:3px;font-size:22px;border:2.5px solid var(--ink);padding:4px 12px;display:inline-block;}
+.row{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;}
+.card{flex:1;min-width:210px;background:var(--app);border:1px solid var(--line);border-radius:14px;padding:24px;}
+.card .n{font-size:48px;font-weight:900;letter-spacing:-.02em;}
+.card .l{font-size:15px;color:var(--muted);margin-top:8px;display:flex;align-items:center;gap:8px;}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+.da{background:var(--ink);}.dr{background:var(--review);}.dj{background:var(--reject);}
+.flow{display:flex;align-items:stretch;gap:0;margin-top:30px;flex-wrap:wrap;}
+.step{flex:1;min-width:160px;background:var(--app);border:1px solid var(--line);border-radius:14px;padding:22px;position:relative;}
+.step h3{font-size:20px;margin-bottom:8px;}
+.step p{font-size:16px;color:var(--muted);}
+.arrow{display:flex;align-items:center;font-size:26px;color:var(--faint);padding:0 10px;}
+.pill{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:18px;border-radius:999px;
+  padding:6px 16px;border:1.5px solid var(--ink);}
+.p-a{background:var(--ink);color:#fff;}.p-r{background:#fffbeb;color:var(--review);border-color:#fcd9a8;}
+.p-j{background:var(--app);color:var(--muted);border-color:var(--line);}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;}
+.muted{color:var(--muted);}
+.team{display:flex;gap:16px;flex-wrap:wrap;margin-top:24px;}
+.tcard{flex:1;min-width:200px;background:var(--app);border:1px solid var(--line);border-radius:14px;padding:20px;}
+.tcard .who{font-weight:800;font-size:18px;}.tcard .what{font-size:15px;color:var(--muted);margin-top:6px;}
+.foot{position:absolute;bottom:26px;left:9vw;right:9vw;display:flex;justify-content:space-between;align-items:center;
+  font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--faint);}
+.bar{position:absolute;bottom:0;left:0;height:4px;background:var(--ink);transition:width .3s;}
+.tag{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--good);}
+.hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);font-size:11px;color:#555;
+  font-family:'JetBrains Mono',monospace;z-index:5;}
+@media(max-width:700px){h1{font-size:40px;}h2{font-size:30px;}}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide active">
+    <div class="kick"><span class="logo">ABI</span> Pulse Foundry × ABI Frameworks Hackathon</div>
+    <h1>WoundScope</h1>
+    <p class="lead">Reads messy nursing-home records and flags which wound patients can be
+    billed to Medicare Part&nbsp;B — with the reasoning and evidence behind every call.</p>
+    <div class="foot"><span>Team — Aadit · Aishwarya · Jay · Om</span><span class="tag">● live demo</span></div>
+  </section>
+
+  <!-- 2 PROBLEM -->
+  <section class="slide">
+    <div class="kick">The problem</div>
+    <h2>Billable wound care is hiding in the paperwork.</h2>
+    <p class="lead">To bill Medicare Part B for a wound, three things must be true — an active
+    wound, active Part B coverage, and proper documentation (size + drainage).</p>
+    <ul>
+      <li>That evidence is scattered across coverage records, diagnosis codes, and messy free-text nurse notes.</li>
+      <li>Today a biller reads <b>every patient by hand</b> — slow, error-prone, and billable care gets missed.</li>
+    </ul>
+  </section>
+
+  <!-- 3 WHAT -->
+  <section class="slide">
+    <div class="kick">What we built</div>
+    <h2>One tool that reads it all and triages every patient.</h2>
+    <p class="lead">WoundScope pulls the records, extracts the wound details, and routes each
+    patient into one of three piles — each decision explained and backed by the source text.</p>
+    <div class="row">
+      <div class="card"><span class="pill p-a"><span class="dot" style="background:#fff"></span>Auto-Accept</span><p class="muted" style="margin-top:14px">Clean — ready to bill.</p></div>
+      <div class="card"><span class="pill p-r"><span class="dot dr"></span>Flag for Review</span><p class="muted" style="margin-top:14px">Eligible, but a human should check.</p></div>
+      <div class="card"><span class="pill p-j"><span class="dot dj"></span>Reject</span><p class="muted" style="margin-top:14px">Not Part B billable.</p></div>
+    </div>
+  </section>
+
+  <!-- 4 HOW -->
+  <section class="slide">
+    <div class="kick">How it works</div>
+    <h2>An automatic assembly line for the data.</h2>
+    <div class="flow">
+      <div class="step"><h3>1 · Collect</h3><p>Pull every record from the EHR, retrying through a 30% flaky connection — nothing dropped.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><h3>2 · Read</h3><p>Extract wound type, size & drainage from 4 note formats + structured assessments.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><h3>3 · Decide</h3><p>Check the 3 billing rules; route with a reason + confidence.</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><h3>4 · Show</h3><p>A dashboard with the decision, the proof, and a biller workflow.</p></div>
+    </div>
+  </section>
+
+  <!-- 5 HARD PARTS -->
+  <section class="slide">
+    <div class="kick">The hard parts we solved</div>
+    <h2>Real-world data is messy. We handled it.</h2>
+    <ul>
+      <li><b>A 30% failing connection</b> → resilient ingestion with retries; zero records lost.</li>
+      <li><b>Notes in every format</b> → parsers for the real templates, not the docs' fake example.</li>
+      <li><b>Garbled text</b> → repairs like "Rightlowerle" → "right lower leg".</li>
+      <li><b>Two wounds in one note</b> → detected and billed separately, never silently missed.</li>
+      <li><b>Full diagnosis coverage</b> → pressure, diabetic, venous, arterial, burns, surgical, abscess.</li>
+    </ul>
+  </section>
+
+  <!-- 6 TRUST -->
+  <section class="slide">
+    <div class="kick">Why a biller can trust it</div>
+    <div class="two">
+      <div>
+        <h2>Every decision shows its work.</h2>
+        <ul>
+          <li><b>Evaluation log</b> — each rule as pass / fail.</li>
+          <li><b>Evidence</b> — the exact sentence each value came from.</li>
+          <li><b>Nothing is a black box.</b></li>
+        </ul>
+      </div>
+      <div>
+        <div class="kick">HIPAA-aligned</div>
+        <ul>
+          <li>PHI masked by default (minimum-necessary).</li>
+          <li>Processed locally · every decision audit-logged.</li>
+          <li>Demo runs on synthetic patients.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 RESULTS -->
+  <section class="slide">
+    <div class="kick">Results · 300 patients</div>
+    <h2>From 300 charts to a 10-patient work list.</h2>
+    <div class="row">
+      <div class="card"><div class="n">135</div><div class="l"><span class="dot da"></span>Auto-Accept</div></div>
+      <div class="card"><div class="n">10</div><div class="l"><span class="dot dr"></span>Flag for Review</div></div>
+      <div class="card"><div class="n">155</div><div class="l"><span class="dot dj"></span>Reject</div></div>
+    </div>
+    <div class="row">
+      <div class="card"><div class="n">0</div><div class="l">records dropped (despite 30% failures)</div></div>
+      <div class="card"><div class="n">285/300</div><div class="l">wound depth recovered from records</div></div>
+    </div>
+  </section>
+
+  <!-- 8 FIT -->
+  <section class="slide">
+    <div class="kick">Where it fits</div>
+    <h2>A drop-in module for ABI's platform.</h2>
+    <p class="lead">ABI pulls patient records from PointClickCare, structures them, and delivers
+    billing-ready data to vendors. <b>WoundScope is that — for wound-care Part B</b> — and it
+    surfaces billable care that would otherwise be missed.</p>
+    <div class="flow">
+      <div class="step"><h3>PointClickCare</h3><p>raw records</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><h3>ABI platform</h3><p>collect + structure</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><h3>WoundScope</h3><p>decide who's billable + why</p></div>
+      <div class="arrow">→</div>
+      <div class="step"><h3>Billing teams</h3><p>act in seconds</p></div>
+    </div>
+  </section>
+
+  <!-- 9 TEAM -->
+  <section class="slide">
+    <div class="kick">Built as a team</div>
+    <h2>The strongest piece from each of us, merged.</h2>
+    <div class="team">
+      <div class="tcard"><div class="who">Aadit</div><div class="what">Resilient ingestion engine + the real note/assessment parsers.</div></div>
+      <div class="tcard"><div class="who">Aishwarya</div><div class="what">Multi-wound clustering + evidence, and the biller workflow.</div></div>
+      <div class="tcard"><div class="who">Jay</div><div class="what">Full ICD-10 diagnosis coverage + text repair.</div></div>
+      <div class="tcard"><div class="who">Om</div><div class="what">Confidence-gated routing, HIPAA compliance + the dashboard.</div></div>
+    </div>
+  </section>
+
+  <!-- 10 CLOSE -->
+  <section class="slide">
+    <div class="kick">Thank you</div>
+    <h1>Messy records in.<br><em>A trustworthy work list out.</em></h1>
+    <p class="lead">Every decision explained, evidenced, and ready for a biller to act on
+    in seconds instead of hours.</p>
+    <div class="foot"><span>github.com/aaf091/git-commit-ted-to-healing</span><span class="tag">WoundScope</span></div>
+  </section>
+
+  <div class="bar" id="bar"></div>
+</div>
+<div class="hint">← → or Space to navigate · F for fullscreen</div>
+<script>
+const slides=[...document.querySelectorAll('.slide')];let i=0;
+function show(n){i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+  document.getElementById('bar').style.width=((i+1)/slides.length*100)+'%';}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();show(i+1);}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();show(i-1);}
+  else if(e.key==='Home'){show(0);}else if(e.key==='End'){show(slides.length-1);}
+  else if(e.key.toLowerCase()==='f'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}});
+document.getElementById('deck').addEventListener('click',e=>{if(e.clientX>window.innerWidth*0.35)show(i+1);else show(i-1);});
+show(0);
+</script>
+</body>
+</html>
